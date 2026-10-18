@@ -94,15 +94,19 @@ async function login(event) {
   const password = $("#login-password").value;
   button.disabled = true;
   message("#login-message", "로그인 확인 중...");
+  let timeoutId;
   try {
     if (!sbClient) throw new Error("Supabase 프로젝트 설정이 아직 준비되지 않았습니다.");
     const email = loginRole === "student" && !rawId.includes("@") ? `${rawId.toLowerCase()}@students.codeon.invalid` : rawId;
-    const { data, error } = await sbClient.auth.signInWithPassword({ email, password });
+    const signIn = sbClient.auth.signInWithPassword({ email, password });
+    const timeout = new Promise((_, reject) => { timeoutId = setTimeout(() => reject(new Error("로그인 서버 응답이 늦습니다. 잠시 후 다시 시도해 주세요.")), 15000); });
+    const { data, error } = await Promise.race([signIn, timeout]);
     if (error) throw error;
     await openSession(data.session);
   } catch (error) {
     message("#login-message", error.message === "Invalid login credentials" ? "아이디 또는 비밀번호를 확인해 주세요." : error.message, true);
   } finally {
+    clearTimeout(timeoutId);
     button.disabled = !databaseReady;
   }
 }
