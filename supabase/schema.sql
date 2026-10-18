@@ -35,6 +35,15 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
+insert into public.profiles (id, username, display_name, role)
+select
+  u.id,
+  nullif(u.raw_user_meta_data ->> 'username', ''),
+  coalesce(u.raw_user_meta_data ->> 'display_name', split_part(coalesce(u.email, ''), '@', 1)),
+  'student'
+from auth.users u
+on conflict (id) do nothing;
+
 create function public.is_teacher()
 returns boolean
 language sql

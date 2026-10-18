@@ -35,6 +35,15 @@ security definer
 set search_path = ''
 as $$ select public.can_manage_class(target_class); $$;
 
+insert into public.profiles (id, username, display_name, role)
+select
+  u.id,
+  nullif(u.raw_user_meta_data ->> 'username', ''),
+  coalesce(u.raw_user_meta_data ->> 'display_name', split_part(coalesce(u.email, ''), '@', 1)),
+  'student'
+from auth.users u
+on conflict (id) do nothing;
+
 drop policy if exists "profiles_read_self_or_teacher" on public.profiles;
 create policy "profiles_read_self_or_teacher" on public.profiles for select to authenticated
   using (
