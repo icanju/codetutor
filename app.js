@@ -6,7 +6,7 @@ const outputState = $("#output-state");
 const runButton = $("#run-code");
 const loginScreen = $("#login-screen");
 const appShell = $("#app-shell");
-let supabase;
+let sbClient;
 let loginRole = "student";
 let currentUser;
 let currentProfile;
@@ -19,6 +19,7 @@ let currentError;
 let currentStep = 0;
 let tutorSessionId;
 let judgeConfigured = false;
+let databaseReady = false;
 let toastTimer;
 
 function message(target, text, error = false) {
@@ -36,7 +37,7 @@ function toast(text) {
 }
 
 function sessionToken() {
-  return supabase.auth.getSession().then(({ data, error }) => {
+  return sbClient.auth.getSession().then(({ data, error }) => {
     if (error || !data.session) throw new Error("로그인 세션이 만료되었습니다. 다시 로그인해 주세요.");
     return data.session.access_token;
   });
@@ -69,10 +70,15 @@ async function initialize() {
     const config = await configResponse.json();
     const health = await healthResponse.json();
     judgeConfigured = health.judgeConfigured;
+    databaseReady = health.databaseReady;
+    $("#grading-notice").classList.toggle("hidden", judgeConfigured);
     if (!window.supabase || !config.publishableKey) throw new Error("Supabase Publishable key 설정이 필요합니다.");
-    supabase = window.supabase.createClient(config.supabaseUrl, config.publishableKey);
-    $("#connection-state").textContent = health.supabaseConfigured ? "Supabase 보안 연결 준비됨" : "Supabase 서버 키 설정을 확인해 주세요";
-    const { data, error } = await supabase.auth.getSession();
+    sbClient = window.supabase.createClient(config.supabaseUrl, config.publishableKey);
+    $("#connection-state").textContent = !health.supabaseConfigured
+      ? "Supabase 서버 키 설정을 확인해 주세요"
+      : health.databaseReady ? "Supabase 연결 및 테이블 확인됨" : "supabase/schema.sql 실행 후 로그인할 수 있습니다";
+    $("#login-submit").disabled = !health.databaseReady;
+    const { data, error } = await sbClient.auth.getSession();
     if (error) throw error;
     if (data.session) await openSession(data.session);
   } catch (error) {
@@ -89,22 +95,22 @@ async function login(event) {
   button.disabled = true;
   message("#login-message", "로그인 확인 중...");
   try {
-    if (!supabase) throw new Error("Supabase 프로젝트 설정이 아직 준비되지 않았습니다.");
+    if (!sbClient) throw new Error("Supabase 프로젝트 설정이 아직 준비되지 않았습니다.");
     const email = loginRole === "student" && !rawId.includes("@") ? `${rawId.toLowerCase()}@students.codeon.invalid` : rawId;
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await sbClient.auth.signInWithPassword({ email, password });
     if (error) throw error;
     await openSession(data.session);
   } catch (error) {
     message("#login-message", error.message === "Invalid login credentials" ? "아이디 또는 비밀번호를 확인해 주세요." : error.message, true);
   } finally {
-    button.disabled = false;
+    button.disabled = !databaseReady;
   }
 }
 
 async function openSession(session) {
-  const { data, error } = await supabase.from("profiles").select("id,username,display_name,role").eq("id", session.user.id).single();
+  const { data, error } = await sbClient.from("profiles").select("id,username,display_name,role").eq("id", session.user.id).single();
   if (error) {
-    await supabase.auth.signOut();
+    await sbClient.auth.signOut();
     throw new Error("계정 프로필을 불러오지 못했습니다. 관리자에게 문의해 주세요.");
   }
   if (!["student", "teacher", "admin"].includes(data.role)) throw new Error("계정 역할이 설정되지 않았습니다.");
@@ -122,7 +128,7 @@ async function openSession(session) {
 }
 
 async function signOut() {
-  if (supabase) await supabase.auth.signOut();
+  if (sbClient) await sbClient.auth.signOut();
   currentUser = null;
   currentProfile = null;
   currentClassId = null;
@@ -144,7 +150,7 @@ function fillSelect(select, rows, { value = "id", label = "name", emptyLabel = "
 }
 
 async function loadStudentClasses() {
-  const { data, error } = await supabase.from("enrollments").select("class_id,classes(id,name)").eq("student_id", currentUser.id);
+  const { data, error } = await sbClient.from("enrollments").select("class_id,classes(id,name)").eq("student_id", currentUser.id);
   if (error) return toast("수업 정보를 불러오지 못했습니다.");
   const classes = (data || []).map(row => row.classes).filter(Boolean);
   fillSelect($("#student-class"), classes, { emptyLabel: "등록된 수업이 없습니다" });
@@ -159,7 +165,7 @@ async function loadStudentClasses() {
 }
 
 async function loadStudentProblems() {
-  const { data, error } = await supabase.from("problems").select("id,title,description,allowed_concepts,points,status").eq("class_id", currentClassId).eq("status", "published").order("created_at", { ascending: true });
+  const { data, error } = await sbClient.from("problems").select("id,title,description,allowed_concepts,points,status").eq("class_id", currentClassId).eq("status", "published").order("created_at", { ascending: true });
   if (error) {
     toast("문제 목록을 불러오지 못했습니다.");
     return;
@@ -183,6 +189,7 @@ function renderProblem(problem) {
     conceptRow.append(tag);
   });
   editor.value = "";
+  $("#stdin-editor").value = "";
   updateLineNumbers();
   resetTutor();
   output.textContent = "코드를 작성한 뒤 실행해 보세요.";
@@ -193,7 +200,7 @@ function renderProblem(problem) {
 }
 
 async function loadStudentHistory() {
-  const { data, error } = await supabase.from("submissions").select("id,status,score,max_score,created_at,problems(title)").eq("student_id", currentUser.id).order("created_at", { ascending: false }).limit(8);
+  const { data, error } = await sbClient.from("submissions").select("id,status,score,max_score,created_at,problems(title)").eq("student_id", currentUser.id).order("created_at", { ascending: false }).limit(8);
   const container = $("#student-history");
   container.replaceChildren();
   if (error || !data?.length) {
@@ -220,11 +227,14 @@ function statusLabel(status) {
 }
 
 async function loadTeacherClasses() {
-  const { data, error } = await supabase.from("classes").select("id,name").eq("teacher_id", currentUser.id).order("created_at");
+  let query = sbClient.from("classes").select("id,name").order("created_at");
+  if (currentProfile.role !== "admin") query = query.eq("teacher_id", currentUser.id);
+  const { data, error } = await query;
   if (error) return toast("수업 목록을 불러오지 못했습니다.");
   fillSelect($("#teacher-class"), data || [], { emptyLabel: "수업을 먼저 만드세요" });
   fillSelect($("#new-student-class"), data || [], { emptyLabel: "수업을 먼저 만드세요" });
   currentClassId = data?.[0]?.id || null;
+  $("#new-student-class").value = currentClassId || "";
   if (currentClassId) await loadTeacherData();
   else updateTeacherEmpty();
 }
@@ -241,8 +251,8 @@ function updateTeacherEmpty() {
 async function loadTeacherData() {
   if (!currentClassId) return updateTeacherEmpty();
   const [rosterResult, problemResult] = await Promise.all([
-    supabase.from("enrollments").select("student_id,created_at,profiles!inner(display_name,username)").eq("class_id", currentClassId),
-    supabase.from("problems").select("id,title,description,points,status,created_at").eq("class_id", currentClassId).order("created_at", { ascending: false })
+    sbClient.from("enrollments").select("student_id,created_at,profiles!inner(display_name,username)").eq("class_id", currentClassId),
+    sbClient.from("problems").select("id,title,description,points,status,created_at").eq("class_id", currentClassId).order("created_at", { ascending: false })
   ]);
   const roster = rosterResult.data || [];
   const problems = problemResult.data || [];
@@ -300,7 +310,7 @@ function fillProblems(problems) {
 async function loadTeacherSubmissions(roster, problems) {
   if (!roster.length) return;
   const studentIds = roster.map(row => row.student_id);
-  const { data, error } = await supabase.from("submissions").select("student_id,status,score,max_score,created_at").in("student_id", studentIds).order("created_at", { ascending: false }).limit(200);
+  const { data, error } = await sbClient.from("submissions").select("student_id,status,score,max_score,created_at").in("student_id", studentIds).order("created_at", { ascending: false }).limit(200);
   if (error) return;
   const latest = new Map();
   (data || []).forEach(row => { if (!latest.has(row.student_id)) latest.set(row.student_id, row); });
@@ -353,7 +363,13 @@ function fillTutorRows(events, roster, problems) {
 }
 
 async function loadTutorRecords(roster = [], problems = []) {
-  const { data, error } = await supabase.from("tutor_events").select("id,student_id,problem_id,session_id,stage,error_type,line_number,created_at,profiles(display_name,username)").in("problem_id", problems.map(problem => problem.id)).order("created_at", { ascending: false }).limit(300);
+  if (!problems.length) {
+    $("#tutor-rows").innerHTML = '<tr><td colspan="5" class="empty-row">수업 문제를 만들면 기록을 확인할 수 있습니다.</td></tr>';
+    $("#overview-tutor-rows").innerHTML = '<tr><td colspan="4" class="empty-row">수업 문제를 만들면 기록을 확인할 수 있습니다.</td></tr>';
+    $("#stat-tutor-events").textContent = "0";
+    return;
+  }
+  const { data, error } = await sbClient.from("tutor_events").select("id,student_id,problem_id,session_id,stage,error_type,line_number,created_at,profiles(display_name,username)").in("problem_id", problems.map(problem => problem.id)).order("created_at", { ascending: false }).limit(300);
   if (error) {
     $("#tutor-rows").innerHTML = '<tr><td colspan="5" class="empty-row">튜터 기록 테이블 준비 후 표시됩니다.</td></tr>';
     return;
@@ -421,13 +437,13 @@ function getPythonWorker() {
   return workerReady;
 }
 
-function executePython(code) {
+function executePython(code, stdin) {
   return getPythonWorker().then(() => new Promise((resolve, reject) => {
     pendingRun = { resolve, timer: setTimeout(() => {
       pythonWorker?.terminate(); pythonWorker = null; workerReady = null; pendingRun = null;
       reject(new Error("실행 시간이 너무 깁니다. 반복 조건을 확인해 주세요."));
     }, 10000) };
-    pythonWorker.postMessage({ type: "run", code });
+    pythonWorker.postMessage({ type: "run", code, stdin });
   }));
 }
 
@@ -469,7 +485,7 @@ async function runCode() {
   setOutputState("실행 환경 준비 중"); output.textContent = "처음 실행할 때 Python 도구를 불러옵니다."; output.className = "";
   resetTutor();
   try {
-    const result = await executePython(code);
+    const result = await executePython(code, $("#stdin-editor").value);
     const outputText = [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
     if (result.error) {
       currentError = classifyError(result.error); currentError.raw = result.error; currentError.code = code;
@@ -542,12 +558,17 @@ async function createClass(event) {
   event.preventDefault();
   const name = $("#new-class-name").value.trim();
   if (!name) return;
-  const { data, error } = await supabase.from("classes").insert({ teacher_id: currentUser.id, name }).select("id,name").single();
+  const { data, error } = await sbClient.from("classes").insert({ teacher_id: currentUser.id, name }).select("id,name").single();
   if (error) return toast("수업을 만들지 못했습니다.");
   $("#create-class-form").reset();
   toast("수업을 만들었습니다.");
   await loadTeacherClasses();
-  if (data) $("#teacher-class").value = data.id;
+  if (data) {
+    currentClassId = data.id;
+    $("#teacher-class").value = data.id;
+    $("#new-student-class").value = data.id;
+    await loadTeacherData();
+  }
 }
 
 async function createStudent(event) {
@@ -562,6 +583,7 @@ async function createStudent(event) {
       classId: $("#new-student-class").value
     });
     form.reset();
+    $("#new-student-class").value = currentClassId || "";
     message("#student-create-message", `계정이 만들어졌습니다. 아이디: ${data.username}`);
     toast("학생 계정을 수업에 등록했습니다.");
     await loadTeacherData();
@@ -589,28 +611,30 @@ async function createProblem(event) {
     const examples = parseCaseJson($("#new-problem-examples").value, false);
     const tests = parseCaseJson($("#new-problem-tests").value, true);
     if (!tests.length) throw new Error("비공개 채점 케이스를 1개 이상 등록해 주세요.");
+    const points = Number($("#new-problem-points").value);
+    if (tests.reduce((sum, test) => sum + test.points, 0) !== points) throw new Error("비공개 테스트 points의 합계를 문제 배점과 맞춰 주세요.");
     const concepts = $("#new-problem-concepts").value.split(",").map(item => item.trim()).filter(Boolean);
-    const inserted = await supabase.from("problems").insert({
+    const inserted = await sbClient.from("problems").insert({
       class_id: currentClassId,
       title: $("#new-problem-title").value.trim(),
       description: $("#new-problem-description").value.trim(),
       allowed_concepts: concepts,
-      points: Number($("#new-problem-points").value),
+      points,
       status: $("#new-problem-published").checked ? "published" : "draft"
     }).select("id").single();
     if (inserted.error) throw inserted.error;
     problem = inserted.data;
     if (examples.length) {
-      const result = await supabase.from("problem_examples").insert(examples.map(item => ({ ...item, problem_id: problem.id })));
+      const result = await sbClient.from("problem_examples").insert(examples.map(item => ({ ...item, problem_id: problem.id })));
       if (result.error) throw result.error;
     }
-    const testResult = await supabase.from("test_cases").insert(tests.map(item => ({ ...item, problem_id: problem.id })));
+    const testResult = await sbClient.from("test_cases").insert(tests.map(item => ({ ...item, problem_id: problem.id })));
     if (testResult.error) throw testResult.error;
     form.reset(); $("#new-problem-points").value = "100"; $("#new-problem-published").checked = true;
     message("#problem-create-message", "문제와 비공개 테스트케이스를 저장했습니다.");
     await loadTeacherData();
   } catch (error) {
-    if (problem?.id) await supabase.from("problems").delete().eq("id", problem.id);
+    if (problem?.id) await sbClient.from("problems").delete().eq("id", problem.id);
     message("#problem-create-message", error.message || "문제를 저장하지 못했습니다.", true);
   } finally { button.disabled = false; }
 }
@@ -625,7 +649,7 @@ $("#login-form").addEventListener("submit", login);
 $("#signout-button").addEventListener("click", signOut);
 $("#student-class").addEventListener("change", async event => { currentClassId = event.target.value; await loadStudentProblems(); });
 $("#problem-picker").addEventListener("change", async event => {
-  const { data } = await supabase.from("problems").select("id,title,description,allowed_concepts,points,status").eq("id", event.target.value).single();
+  const { data } = await sbClient.from("problems").select("id,title,description,allowed_concepts,points,status").eq("id", event.target.value).single();
   renderProblem(data || null);
   await loadStudentHistory();
 });
@@ -640,6 +664,7 @@ editor.addEventListener("keydown", event => {
 });
 $("#refresh-history").addEventListener("click", loadStudentHistory);
 $("#teacher-class").addEventListener("change", async event => { currentClassId = event.target.value; $("#new-student-class").value = currentClassId; await loadTeacherData(); });
+$("#new-student-class").addEventListener("change", event => { $("#teacher-class").value = event.target.value; currentClassId = event.target.value; loadTeacherData(); });
 $("#create-class-form").addEventListener("submit", createClass);
 $("#student-create-form").addEventListener("submit", createStudent);
 $("#problem-create-form").addEventListener("submit", createProblem);

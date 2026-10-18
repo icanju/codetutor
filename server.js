@@ -90,9 +90,9 @@ async function getVisibleProblem(problemId, token) {
   return rows[0];
 }
 
-function allowRate(request, key, maximum, windowMs = 60000) {
+function allowRate(request, key, maximum, windowMs = 60000, identity) {
   const now = Date.now();
-  const client = request.headers["x-forwarded-for"]?.split(",")[0].trim() || request.socket.remoteAddress || "unknown";
+  const client = identity || request.headers["x-forwarded-for"]?.split(",")[0].trim() || request.socket.remoteAddress || "unknown";
   const bucketKey = `${key}:${client}`;
   const recent = (rateLimits.get(bucketKey) || []).filter(time => now - time < windowMs);
   if (recent.length >= maximum) return false;
@@ -106,6 +106,7 @@ async function createHint(input, request) {
   if (!key) throw Object.assign(new Error("AI 연결 설정이 아직 완료되지 않았습니다."), { status: 503 });
   if (typeof input.code !== "string" || input.code.length > 20000) throw Object.assign(new Error("코드가 너무 길거나 비어 있습니다."), { status: 400 });
   const identity = await verifyUser(request, ["student"]);
+  if (!allowRate(request, "hint", 20, 60000, identity.user.id)) throw Object.assign(new Error("잠시 쉬었다가 다시 요청해 주세요."), { status: 429 });
   const problem = await getVisibleProblem(input.problemId, identity.token);
   const concepts = Array.isArray(problem.allowed_concepts) ? problem.allowed_concepts : [];
 
@@ -151,6 +152,7 @@ async function createHint(input, request) {
 
 async function createStudent(input, request) {
   const { user, profile } = await verifyUser(request, ["teacher", "admin"]);
+  if (!allowRate(request, "student-account", 12, 60000, user.id)) throw Object.assign(new Error("학생 계정 발급 요청이 많습니다. 잠시 후 다시 시도해 주세요."), { status: 429 });
   const username = String(input.username || "").trim().toLowerCase();
   const displayName = String(input.displayName || "").trim();
   const password = String(input.password || "");
@@ -159,7 +161,8 @@ async function createStudent(input, request) {
   if (password.length < 8 || password.length > 72) throw Object.assign(new Error("비밀번호는 8~72자로 설정해 주세요."), { status: 400 });
   if (!displayName || displayName.length > 60 || !/^[0-9a-f-]{36}$/i.test(classId)) throw Object.assign(new Error("이름이나 수업을 확인해 주세요."), { status: 400 });
 
-  const classes = await supabaseService(`/rest/v1/classes?id=eq.${encodeURIComponent(classId)}&teacher_id=eq.${encodeURIComponent(user.id)}&select=id`);
+  const ownerFilter = profile.role === "admin" ? "" : `&teacher_id=eq.${encodeURIComponent(user.id)}`;
+  const classes = await supabaseService(`/rest/v1/classes?id=eq.${encodeURIComponent(classId)}${ownerFilter}&select=id`);
   if (!classes.length) throw Object.assign(new Error("선택한 수업을 찾을 수 없습니다."), { status: 404 });
   const email = `${username}@students.codeon.invalid`;
   const created = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
@@ -211,8 +214,8 @@ function normalizeOutput(value) {
 
 async function gradeSubmission(input, request) {
   if (!process.env.JUDGE0_API_KEY) throw Object.assign(new Error("채점 실행기 연결이 아직 설정되지 않았습니다. 코드는 제출되거나 저장되지 않았습니다."), { status: 503 });
-  if (!allowRate(request, "grade", 5)) throw Object.assign(new Error("잠시 후 다시 제출해 주세요."), { status: 429 });
   const { user } = await verifyUser(request, ["student"]);
+  if (!allowRate(request, "grade", 5, 60000, user.id)) throw Object.assign(new Error("잠시 후 다시 제출해 주세요."), { status: 429 });
   const code = String(input.code || "");
   if (!code.trim() || code.length > 20000) throw Object.assign(new Error("코드가 비어 있거나 너무 깁니다."), { status: 400 });
   const problem = await getVisibleProblem(input.problemId, request.headers.authorization.slice(7));
@@ -239,6 +242,7 @@ async function gradeSubmission(input, request) {
           language_id: Number(process.env.JUDGE0_PYTHON_LANGUAGE_ID || 71),
           source_code: code,
           stdin: test.stdin,
+          expected_output: test.expected_stdout,
           cpu_time_limit: 2,
           cpu_extra_time: 1,
           wall_time_limit: 5,
@@ -283,11 +287,17 @@ async function handleApi(request, response, url) {
     return send(response, 200, { supabaseUrl, publishableKey: publishableKey || null });
   }
   if (request.method === "GET" && url.pathname === "/api/health") {
-    return send(response, 200, { ok: true, aiConfigured: Boolean(process.env.GEMINI_API_KEY), supabaseConfigured: Boolean(publishableKey && secretKey), judgeConfigured: Boolean(process.env.JUDGE0_API_KEY) });
+    let databaseReady = false;
+    if (publishableKey && secretKey) {
+      try {
+        await Promise.all(["profiles", "classes", "enrollments", "problems", "problem_examples", "test_cases", "submissions", "submission_tests", "tutor_events"].map(table => supabaseService(`/rest/v1/${table}?select=id&limit=0`)));
+        databaseReady = true;
+      } catch {}
+    }
+    return send(response, 200, { ok: true, aiConfigured: Boolean(process.env.GEMINI_API_KEY), supabaseConfigured: Boolean(publishableKey && secretKey), databaseReady, judgeConfigured: Boolean(process.env.JUDGE0_API_KEY) });
   }
   if (request.method !== "POST") return false;
   if (url.pathname === "/api/hints") {
-    if (!allowRate(request, "hint", 20)) return send(response, 429, { error: "잠시 쉬었다가 다시 요청해 주세요." });
     return send(response, 200, await createHint(await readBody(request), request));
   }
   if (url.pathname === "/api/teacher/students") return send(response, 201, await createStudent(await readBody(request, 10000), request));

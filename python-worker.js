@@ -13,8 +13,11 @@ self.onmessage = async event => {
   if (event.data.type !== "run" || !runtime) return;
   const stdout = [];
   const stderr = [];
+  const input = new TextEncoder().encode(event.data.stdin || "");
+  let inputIndex = 0;
   runtime.setStdout({ batched: text => stdout.push(text) });
   runtime.setStderr({ batched: text => stderr.push(text) });
+  runtime.setStdin({ stdin: () => inputIndex < input.length ? input[inputIndex++] : null });
   try {
     await runtime.runPythonAsync(event.data.code);
     self.postMessage({ type: "result", stdout: stdout.join("\n"), stderr: stderr.join("\n"), error: null });

@@ -21,7 +21,7 @@ begin
   values
     (conditional_uuid, class_uuid, '용돈 계산', '용돈과 책 가격을 입력받아 남은 돈 또는 부족한 금액을 출력하세요.', array['input', 'int', 'if', 'else', '산술 연산', 'format'], 100, 'published'),
     (list_uuid, class_uuid, '점수 합계', '공백으로 구분된 점수를 입력받아 반복문으로 합계를 출력하세요.', array['input', 'split', 'int', '리스트', 'for 반복문', '누적 합계'], 100, 'published'),
-    (dictionary_uuid, class_uuid, '사전에서 값 찾기', '정해진 이름표를 키로 사용해 딕셔너리에 저장된 값을 출력하세요.', array['딕셔너리', '키', '값', '문자열'], 100, 'draft')
+    (dictionary_uuid, class_uuid, '사전에서 값 찾기', '정해진 이름표를 키로 사용해 딕셔너리에 저장된 값을 출력하세요.', array['딕셔너리', '키', '값', '문자열'], 100, 'published')
   on conflict (id) do nothing;
 
   insert into public.problem_examples (id, problem_id, stdin, expected_stdout)
