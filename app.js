@@ -524,8 +524,12 @@ async function runCode() {
     }
   } catch (error) {
     pythonWorker?.terminate(); pythonWorker = null; workerReady = null;
-    output.textContent = error.message; output.className = "has-error"; setOutputState("실행 불가", "error");
-    $("#tutor-content").innerHTML = '<div class="tutor-empty"><h3>실행 환경에 연결하지 못했어요</h3><p>인터넷 연결을 확인한 뒤 다시 시도해 주세요.</p></div>';
+    const timedOut = error.message.includes("실행 시간이 너무 깁니다");
+    output.textContent = error.message; output.className = "has-error"; setOutputState(timedOut ? "시간 초과" : "실행 오류", "error");
+    const title = timedOut ? "실행 시간이 초과됐어요" : "코드를 실행하지 못했어요";
+    const detail = timedOut ? "반복문이나 재귀 호출이 끝나는지 확인해 보세요." : error.message;
+    $("#tutor-content").innerHTML = `<div class="tutor-empty"><h3>${title}</h3><p></p></div>`;
+    $("#tutor-content .tutor-empty p").textContent = detail;
   } finally {
     runButton.disabled = false; runButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 12 7-12 7V5Z"/></svg>실행';
   }
