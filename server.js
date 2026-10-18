@@ -287,14 +287,21 @@ async function handleApi(request, response, url) {
     return send(response, 200, { supabaseUrl, publishableKey: publishableKey || null });
   }
   if (request.method === "GET" && url.pathname === "/api/health") {
-    let databaseReady = false;
+    const requiredTables = ["profiles", "classes", "enrollments", "problems", "problem_examples", "test_cases", "submissions", "submission_tests", "tutor_events"];
+    let missingTables = requiredTables;
     if (publishableKey && secretKey) {
-      try {
-        await Promise.all(["profiles", "classes", "enrollments", "problems", "problem_examples", "test_cases", "submissions", "submission_tests", "tutor_events"].map(table => supabaseService(`/rest/v1/${table}?select=id&limit=0`)));
-        databaseReady = true;
-      } catch {}
+      const checks = await Promise.all(requiredTables.map(async table => {
+        try {
+          await supabaseService(`/rest/v1/${table}?select=id&limit=0`);
+          return { table, exists: true };
+        } catch {
+          return { table, exists: false };
+        }
+      }));
+      missingTables = checks.filter(check => !check.exists).map(check => check.table);
     }
-    return send(response, 200, { ok: true, aiConfigured: Boolean(process.env.GEMINI_API_KEY), supabaseConfigured: Boolean(publishableKey && secretKey), databaseReady, judgeConfigured: Boolean(process.env.JUDGE0_API_KEY) });
+    const databaseReady = Boolean(publishableKey && secretKey) && missingTables.length === 0;
+    return send(response, 200, { ok: true, aiConfigured: Boolean(process.env.GEMINI_API_KEY), supabaseConfigured: Boolean(publishableKey && secretKey), databaseReady, missingTables, judgeConfigured: Boolean(process.env.JUDGE0_API_KEY) });
   }
   if (request.method !== "POST") return false;
   if (url.pathname === "/api/hints") {
