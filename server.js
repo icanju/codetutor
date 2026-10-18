@@ -314,12 +314,12 @@ async function handleApi(request, response, url) {
     let sampleDataReady = false;
     if (databaseReady) {
       try {
-        const sampleIds = ["7480771d-297c-4e22-bb60-9e2d91621aa1", "2a1292d3-8c95-46a6-8d28-1b13f35dbd4d", "7a12c2a3-bb7a-449e-b328-09950e358039"];
+        const sampleIds = ["7480771d-297c-4e22-bb60-9e2d91621aa1", "2a1292d3-8c95-46a6-8d28-1b13f35dbd4d", "7a12c2a3-bb7a-449e-b328-09950e358039", "8b13d3b4-cc8b-45f9-a439-10050e468140", "9c24e4c5-dd9c-46f0-b54a-21161f579251", "ad35f5d6-eead-4701-c65b-32272068a362"];
         const [problems, cases] = await Promise.all([
           supabaseService(`/rest/v1/problems?id=in.(${sampleIds.join(",")})&select=id`),
           supabaseService(`/rest/v1/test_cases?problem_id=in.(${sampleIds.join(",")})&select=id`)
         ]);
-        sampleDataReady = problems.length === sampleIds.length && cases.length >= 8;
+        sampleDataReady = problems.length === sampleIds.length && cases.length >= 18;
       } catch {}
     }
     return send(response, 200, { ok: true, aiConfigured: Boolean(process.env.GEMINI_API_KEY), supabaseConfigured: Boolean(publishableKey && secretKey), databaseReady, sampleDataReady, missingTables, schemaErrors, judgeConfigured: Boolean(process.env.JUDGE0_API_KEY) });

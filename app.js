@@ -133,6 +133,8 @@ async function openSession(session) {
 
 async function signOut() {
   if (sbClient) await sbClient.auth.signOut();
+  $("#demo-credentials").replaceChildren();
+  $("#demo-credentials").classList.add("hidden");
   currentUser = null;
   currentProfile = null;
   currentClassId = null;
@@ -595,6 +597,67 @@ async function createStudent(event) {
   finally { button.disabled = false; }
 }
 
+function randomAccountToken(length = 8) {
+  const bytes = crypto.getRandomValues(new Uint8Array(length));
+  return [...bytes].map(byte => (byte % 36).toString(36)).join("");
+}
+
+function showDemoCredentials(accounts) {
+  const container = $("#demo-credentials");
+  container.replaceChildren();
+  container.classList.remove("hidden");
+  const note = document.createElement("p");
+  note.className = "form-help";
+  note.textContent = "임시 비밀번호는 다시 조회할 수 없으니 지금 안전하게 복사해 두세요.";
+  container.append(note);
+  accounts.forEach(account => {
+    const row = document.createElement("div");
+    row.className = "demo-credential-row";
+    const name = document.createElement("span"); name.textContent = account.displayName;
+    const credentials = document.createElement("code"); credentials.textContent = `${account.username}  /  ${account.password}`;
+    const copy = document.createElement("button"); copy.type = "button"; copy.className = "text-button"; copy.textContent = "복사";
+    copy.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(`${account.username}\t${account.password}`);
+        toast(`${account.username} 계정 정보를 복사했습니다.`);
+      } catch {
+        toast("복사에 실패했습니다. 아이디와 비밀번호를 직접 선택해 주세요.");
+      }
+    });
+    row.append(name, credentials, copy);
+    container.append(row);
+  });
+}
+
+async function createDemoStudents() {
+  const classId = $("#new-student-class").value;
+  if (!classId) return message("#student-create-message", "먼저 수업을 만들고 선택해 주세요.", true);
+  const button = $("#create-demo-students");
+  const credentials = [];
+  button.disabled = true;
+  button.textContent = "테스트 계정 만드는 중...";
+  message("#student-create-message", "테스트 학생 3개 계정을 만들고 있습니다.");
+  try {
+    for (let index = 1; index <= 3; index += 1) {
+      const username = `try${randomAccountToken(8)}`;
+      const password = `Py-${randomAccountToken(10)}A7!`;
+      const displayName = `테스트 학생 ${index}`;
+      await apiPost("/api/teacher/students", { username, password, displayName, classId });
+      credentials.push({ username, password, displayName });
+      showDemoCredentials(credentials);
+    }
+    message("#student-create-message", "테스트 학생 3명을 만들고 수업에 등록했습니다.");
+    await loadTeacherData();
+  } catch (error) {
+    if (credentials.length) showDemoCredentials(credentials);
+    message("#student-create-message", credentials.length ? `${credentials.length}개 계정을 만들었습니다. ${error.message}` : error.message, true);
+    if (credentials.length) await loadTeacherData();
+  } finally {
+    button.disabled = false;
+    button.textContent = "테스트 학생 3명 빠르게 만들기";
+  }
+}
+
 function parseCaseJson(text, needsPoints) {
   if (!text.trim()) return [];
   const parsed = JSON.parse(text);
@@ -671,6 +734,7 @@ $("#teacher-class").addEventListener("change", async event => { currentClassId =
 $("#new-student-class").addEventListener("change", event => { $("#teacher-class").value = event.target.value; currentClassId = event.target.value; loadTeacherData(); });
 $("#create-class-form").addEventListener("submit", createClass);
 $("#student-create-form").addEventListener("submit", createStudent);
+$("#create-demo-students").addEventListener("click", createDemoStudents);
 $("#problem-create-form").addEventListener("submit", createProblem);
 document.querySelectorAll("[data-teacher-tab]").forEach(button => button.addEventListener("click", () => activateTeacherTab(button.dataset.teacherTab)));
 ["#refresh-roster", "#refresh-problems", "#refresh-tutor", "#refresh-overview"].forEach(selector => $(selector).addEventListener("click", loadTeacherData));
