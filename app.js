@@ -14,6 +14,7 @@ let currentClassId;
 let currentProblem;
 let availableProblems = [];
 let studentMode = "free";
+let exampleRequest = 0;
 let pythonWorker;
 let workerReady;
 let pendingRun;
@@ -187,25 +188,48 @@ async function loadStudentProblems() {
   currentProblem = studentMode === "problem" ? availableProblems[0] || null : null;
   renderProblemMode();
   if (studentMode === "problem" && currentProblem) renderProblem(currentProblem);
-  if (currentProblem) await loadStudentHistory();
+  await loadStudentHistory();
 }
 
-function renderProblem(problem) {
+function renderProblem(problem, resetEditor = true) {
   currentProblem = problem;
   $("#problem-title").textContent = problem?.title || "공개된 문제가 없습니다";
   $("#problem-description").textContent = problem?.description || "교사가 문제를 공개하면 이곳에서 선택할 수 있습니다.";
   $("#problem-points").textContent = problem ? `${problem.points}점` : "";
   renderProblemMode();
-  editor.value = "";
-  $("#stdin-editor").value = "";
-  $("#current-filename").textContent = "solution.py";
-  updateLineNumbers();
-  resetTutor();
-  output.textContent = "코드를 작성한 뒤 실행해 보세요.";
-  output.className = "";
-  setOutputState("실행 전");
+  loadProblemExamples(problem?.id || null);
+  if (resetEditor) {
+    editor.value = "";
+    $("#stdin-editor").value = "";
+    $("#current-filename").textContent = "solution.py";
+    updateLineNumbers();
+    resetTutor();
+    output.textContent = "코드를 작성한 뒤 실행해 보세요.";
+    output.className = "";
+    setOutputState("실행 전");
+  }
   $("#submit-code").disabled = !problem || !judgeConfigured;
   $("#submit-code").title = judgeConfigured ? "테스트케이스로 채점" : "Judge0 API 키 설정 후 이용 가능";
+}
+
+async function loadProblemExamples(problemId) {
+  const request = ++exampleRequest;
+  const section = $("#problem-examples");
+  const list = $("#example-list");
+  section.classList.add("hidden");
+  list.replaceChildren();
+  if (!problemId) return;
+  const { data, error } = await sbClient.from("problem_examples").select("stdin,expected_stdout").eq("problem_id", problemId).order("created_at", { ascending: true });
+  if (request !== exampleRequest || currentProblem?.id !== problemId || error || !data?.length) return;
+  data.forEach((example, index) => {
+    const card = document.createElement("article"); card.className = "example-card";
+    const heading = document.createElement("span"); heading.textContent = `예시 ${index + 1}`;
+    const values = document.createElement("div"); values.className = "example-values";
+    const input = document.createElement("div"); const inputLabel = document.createElement("small"); inputLabel.textContent = "입력"; const inputText = document.createElement("pre"); inputText.textContent = example.stdin || "(입력 없음)"; input.append(inputLabel, inputText);
+    const output = document.createElement("div"); const outputLabel = document.createElement("small"); outputLabel.textContent = "출력"; const outputText = document.createElement("pre"); outputText.textContent = example.expected_stdout; output.append(outputLabel, outputText);
+    values.append(input, output); card.append(heading, values); list.append(card);
+  });
+  section.classList.remove("hidden");
 }
 
 function renderProblemMode() {
@@ -222,7 +246,7 @@ function setStudentMode(mode) {
   if (mode === "problem") {
     const selected = availableProblems.find(problem => problem.id === $("#problem-picker").value) || availableProblems[0] || null;
     if (selected) $("#problem-picker").value = selected.id;
-    renderProblem(selected);
+    renderProblem(selected, false);
     loadStudentHistory();
   } else {
     currentProblem = null;

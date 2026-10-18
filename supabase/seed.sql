@@ -11,14 +11,17 @@ declare
   multiple_uuid uuid := '9c24e4c5-dd9c-46f0-b54a-21161f579251';
   palindrome_uuid uuid := 'ad35f5d6-eead-4701-c65b-32272068a362';
 begin
-  select id into teacher_uuid from public.profiles where role in ('teacher', 'admin') order by created_at limit 1;
+  select id into teacher_uuid from public.profiles
+  where role in ('teacher', 'admin')
+  order by case when role = 'teacher' then 0 else 1 end, created_at desc
+  limit 1;
   if teacher_uuid is null then
     raise exception '먼저 profiles에서 교사 계정을 만들어 주세요.';
   end if;
 
   insert into public.classes (id, teacher_id, name)
   values (class_uuid, teacher_uuid, '파이썬 기초반')
-  on conflict (id) do nothing;
+  on conflict (id) do update set teacher_id = excluded.teacher_id, name = excluded.name;
 
   insert into public.problems (id, class_id, title, description, allowed_concepts, points, status)
   values
@@ -29,6 +32,11 @@ begin
     (multiple_uuid, class_uuid, '3의 배수 개수', '공백으로 구분된 정수 중 3의 배수가 몇 개인지 출력하세요.', array['input', 'split', 'int', 'for 반복문', 'if', '나머지 연산'], 100, 'published'),
     (palindrome_uuid, class_uuid, '회문 확인', '입력한 소문자 문자열이 앞에서 읽어도 뒤에서 읽어도 같은지 판별하세요. 같으면 YES, 아니면 NO를 출력하세요.', array['문자열', '인덱싱', '슬라이싱', 'if', '비교 연산'], 100, 'published')
   on conflict (id) do nothing;
+
+  insert into public.enrollments (class_id, student_id)
+  select class_uuid, id from public.profiles
+  where role = 'student' and username like 'try%'
+  on conflict do nothing;
 
   insert into public.problem_examples (id, problem_id, stdin, expected_stdout)
   values
