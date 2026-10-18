@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f4f6f3">
   <title>코드온 | 코드 작성 및 AI 튜터 활용 시스템</title>
+  <link rel="icon" type="image/svg+xml" href="/ju-smile-white.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -14,7 +15,7 @@
 <body>
   <section class="login-screen" id="login-screen">
     <div class="login-intro">
-      <a class="brand brand-light" href="#"><span class="brand-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6M16 6l6 6-6 6M14 3l-4 18"/></svg></span><span>codeon<span class="brand-dot">.</span></span></a>
+      <a class="brand brand-light" href="#"><span class="brand-icon"><img src="/ju-smile-white.svg" alt=""></span><span>codeon<span class="brand-dot">.</span></span></a>
       <div class="intro-copy"><span class="intro-kicker">LEARN BY DEBUGGING</span><h1>코드 작성 및<br>AI 튜터 활용 시스템</h1><p>직접 코드를 작성하고, 단계별 힌트로<br>오류를 스스로 해결해 보세요.</p></div>
       <div class="intro-bottom"><span>01 / BUILD</span><span>02 / UNDERSTAND</span><span>03 / IMPROVE</span></div>
     </div>
@@ -30,15 +31,15 @@
   </section>
 
   <div class="app-shell hidden" id="app-shell">
-    <header class="topbar"><a class="brand" href="#" aria-label="코드온"><span class="brand-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6M16 6l6 6-6 6M14 3l-4 18"/></svg></span><span>codeon<span class="brand-dot">.</span></span></a><div class="system-title">코드 작성 및 AI 튜터 활용 시스템</div><div class="user-menu"><span class="user-avatar" id="user-avatar">학</span><span class="user-name" id="user-name"></span><span class="role-pill" id="user-role"></span><button class="signout-button" id="signout-button">로그아웃</button></div></header>
+    <header class="topbar"><a class="brand" href="#" aria-label="코드온"><span class="brand-icon"><img src="/ju-smile-white.svg" alt=""></span><span>codeon<span class="brand-dot">.</span></span></a><div class="system-title">코드 작성 및 AI 튜터 활용 시스템</div><div class="user-menu"><span class="user-avatar" id="user-avatar">학</span><span class="user-name" id="user-name"></span><span class="role-pill" id="user-role"></span><button class="signout-button" id="signout-button">로그아웃</button></div></header>
 
     <main class="main-content">
       <section class="student-view hidden" id="student-view">
-        <div class="section-heading"><div><span class="eyebrow">STUDENT WORKSPACE</span><h1>오늘의 코드 연습</h1><p>문제를 고르고 직접 실행해 보세요. 오류가 생기면 튜터가 한 단계씩 도와드려요.</p></div><div class="course-picker"><label for="student-class">수업</label><select id="student-class"></select></div></div>
+        <div class="section-heading"><div><span class="eyebrow">STUDENT WORKSPACE</span><h1>자유 코드 AI 튜터</h1><p>정해진 문제가 없어도 괜찮아요. 지금 작성 중인 코드를 실행하고 오류 힌트를 받아보세요.</p></div><div class="course-picker"><label for="student-class">기록할 수업</label><select id="student-class"></select></div></div>
+        <nav class="student-modes" aria-label="학습 방식"><button class="active" data-student-mode="free">자유 코드 튜터</button><button data-student-mode="problem">수업 문제 풀기</button></nav>
         <div class="student-grid">
           <section class="student-main">
-            <div class="problem-bar"><div class="problem-picker-wrap"><label for="problem-picker">문제</label><select id="problem-picker"></select></div><span class="problem-points" id="problem-points"></span></div>
-            <article class="problem-summary"><div class="problem-category" id="problem-category">수업 문제</div><h2 id="problem-title">문제를 불러오는 중</h2><p id="problem-description">수업에 등록된 문제를 선택하세요.</p><div class="concept-row" id="concept-row"></div></article>
+            <div class="problem-mode-context hidden" id="problem-mode-context"><div class="problem-bar"><div class="problem-picker-wrap"><label for="problem-picker">문제</label><select id="problem-picker"></select></div><span class="problem-points" id="problem-points"></span></div><article class="problem-summary"><div class="problem-category">선택한 수업 문제</div><h2 id="problem-title">문제를 불러오는 중</h2><p id="problem-description">문제 설명이 여기에 표시됩니다.</p></article></div>
             <section class="ide" aria-label="파이썬 코드 편집기">
               <div class="ide-topline"><div class="file-tab"><span class="python-badge">Py</span><span id="current-filename">solution.py</span><span class="unsaved-mark"></span></div><div class="ide-tools"><span class="runtime-label"><i></i> Python 3</span><label class="open-file-button" for="code-file">파일 열기</label><input id="code-file" type="file" accept=".py,text/x-python,text/plain" hidden><button class="clear-button" id="clear-code" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 14h10l1-14M9 7V4h6v3"/></svg>지우기</button></div></div>
               <div class="editor-wrap"><div class="line-numbers" id="line-numbers" aria-hidden="true">1</div><textarea id="code-editor" aria-label="파이썬 코드" placeholder="여기에 파이썬 코드를 작성하세요." spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea></div>
@@ -49,7 +50,7 @@
             <p class="grading-notice" id="grading-notice">자동 채점 서버 연결 전입니다. 지금은 Python 실행과 AI 튜터를 사용할 수 있습니다.</p>
           </section>
 
-          <aside class="student-aside"><section class="tutor" aria-label="AI 튜터"><div class="tutor-header"><div class="tutor-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a7 7 0 0 0-4 12.7V19h8v-3.3A7 7 0 0 0 12 3ZM9 22h6M9 10l2 2 4-4"/></svg></div><div class="tutor-title"><h2>AI 튜터</h2><p>정답 대신, 생각할 방향을 도와요</p></div><span class="no-answer">정답 코드 없음</span></div><div class="tutor-content" id="tutor-content" aria-live="polite"><div class="tutor-empty"><div class="empty-glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1"/><circle cx="12" cy="12" r="4"/></svg></div><h3>막히면 같이 살펴봐요</h3><p>코드를 실행하면 오류 종류부터 차근차근 확인해요.</p></div></div><div class="tutor-footer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/></svg><span>3단계 힌트를 요청하면 코드와 오류 내용이 Gemini로 전달됩니다.</span></div></section>
+          <aside class="student-aside"><section class="tutor" aria-label="AI 튜터"><div class="tutor-header"><div class="tutor-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a7 7 0 0 0-4 12.7V19h8v-3.3A7 7 0 0 0 12 3ZM9 22h6M9 10l2 2 4-4"/></svg></div><div class="tutor-title"><h2>AI 튜터</h2><p>정답 대신, 생각할 방향을 도와요</p></div><span class="no-answer">정답 코드 없음</span></div><div class="tutor-content" id="tutor-content" aria-live="polite"><div class="tutor-empty"><div class="empty-glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1"/><circle cx="12" cy="12" r="4"/></svg></div><h3>막히면 같이 살펴봐요</h3><p>문제와 상관없이 본인 코드를 가져와도 됩니다.</p></div></div><div class="tutor-footer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/></svg><span>3단계 힌트를 요청하면 코드와 오류 내용이 Gemini로 전달됩니다.</span></div></section>
             <section class="history-panel"><div class="panel-heading"><div><span class="eyebrow">MY RECORD</span><h2>최근 채점 기록</h2></div><button class="text-button" id="refresh-history" type="button">새로고침</button></div><div class="history-list" id="student-history"><p class="empty-row">로그인 후 기록을 불러옵니다.</p></div></section>
           </aside>
         </div>

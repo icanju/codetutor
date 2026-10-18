@@ -171,7 +171,8 @@ create table public.submission_tests (
 create table public.tutor_events (
   id uuid primary key default gen_random_uuid(),
   student_id uuid not null references public.profiles(id) on delete cascade,
-  problem_id uuid not null references public.problems(id) on delete cascade,
+  class_id uuid not null references public.classes(id) on delete cascade,
+  problem_id uuid references public.problems(id) on delete set null,
   session_id uuid not null,
   stage smallint not null check (stage between 1 and 3),
   error_type text not null,
@@ -179,7 +180,7 @@ create table public.tutor_events (
   created_at timestamptz not null default now(),
   unique (session_id, stage)
 );
-create index tutor_events_problem_time_idx on public.tutor_events (problem_id, created_at desc);
+create index tutor_events_class_time_idx on public.tutor_events (class_id, created_at desc);
 
 alter table public.profiles enable row level security;
 alter table public.classes enable row level security;
@@ -265,9 +266,7 @@ create policy "submission_tests_teacher_only" on public.submission_tests for sel
   ));
 
 create policy "tutor_events_read_own_or_class_teacher" on public.tutor_events for select to authenticated
-  using (student_id = (select auth.uid()) or exists (
-    select 1 from public.problems p where p.id = problem_id and public.teaches_class(p.class_id)
-  ));
+  using (student_id = (select auth.uid()) or public.teaches_class(class_id));
 
 grant usage on schema public to authenticated;
 grant select on public.profiles, public.classes, public.enrollments, public.problems,

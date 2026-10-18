@@ -29,6 +29,7 @@ const assets = {
   "/styles.css": ["styles.css", "text/css; charset=utf-8"],
   "/app.js": ["app.js", "text/javascript; charset=utf-8"],
   "/python-worker.js": ["python-worker.js", "text/javascript; charset=utf-8"],
+  "/ju-smile-white.svg": ["ju-smile-white.svg", "image/svg+xml; charset=utf-8"],
   "/__preview-bridge.js": ["__preview-bridge.js", "text/javascript; charset=utf-8"]
 };
 const rateLimits = new Map();
@@ -90,6 +91,17 @@ async function getVisibleProblem(problemId, token) {
   return rows[0];
 }
 
+async function getVisibleClass(classId, token) {
+  if (!/^[0-9a-f-]{36}$/i.test(classId || "")) throw Object.assign(new Error("수업 선택을 확인해 주세요."), { status: 400 });
+  const response = await fetch(`${supabaseUrl}/rest/v1/classes?id=eq.${encodeURIComponent(classId)}&select=id`, {
+    headers: { apikey: publishableKey, Authorization: `Bearer ${token}` }
+  });
+  if (!response.ok) throw Object.assign(new Error("수업 정보를 확인하지 못했습니다."), { status: 502 });
+  const rows = await response.json();
+  if (!rows.length) throw Object.assign(new Error("이 수업에 접근할 수 없습니다."), { status: 404 });
+  return rows[0];
+}
+
 function allowRate(request, key, maximum, windowMs = 60000, identity) {
   const now = Date.now();
   const client = identity || request.headers["x-forwarded-for"]?.split(",")[0].trim() || request.socket.remoteAddress || "unknown";
@@ -107,8 +119,10 @@ async function createHint(input, request) {
   if (typeof input.code !== "string" || input.code.length > 20000) throw Object.assign(new Error("코드가 너무 길거나 비어 있습니다."), { status: 400 });
   const identity = await verifyUser(request, ["student"]);
   if (!allowRate(request, "hint", 20, 60000, identity.user.id)) throw Object.assign(new Error("잠시 쉬었다가 다시 요청해 주세요."), { status: 429 });
-  const problem = await getVisibleProblem(input.problemId, identity.token);
-  const concepts = Array.isArray(problem.allowed_concepts) ? problem.allowed_concepts : [];
+  const activeClass = await getVisibleClass(input.classId, identity.token);
+  const problem = input.problemId ? await getVisibleProblem(input.problemId, identity.token) : null;
+  if (problem && problem.class_id !== activeClass.id) throw Object.assign(new Error("문제와 선택한 수업이 일치하지 않습니다."), { status: 400 });
+  const concepts = problem && Array.isArray(problem.allowed_concepts) ? problem.allowed_concepts : null;
 
   const prompt = [
     "당신은 초보 학습자를 돕는 파이썬 수업 튜터입니다.",
@@ -117,8 +131,10 @@ async function createHint(input, request) {
     "오류 종류와 줄 번호는 이미 앞 단계에서 학생에게 제공했습니다. 이 정보는 반복하지 말고, 왜 이런 오류가 생기는지 학생이 생각하도록 안내하세요.",
     "첫 문장은 관련된 배운 개념을 설명하고, 다음 문장은 학생 코드에서 그 개념을 어떻게 점검할지 질문하세요.",
     "절대로 수정된 코드, 정답, 코드 조각, 의사코드를 생성하지 마세요. 코드 인용부호나 Markdown을 쓰지 마세요. 새 라이브러리나 수업 범위 밖의 문법도 제안하지 마세요.",
-    "아래 수업 노트 요약을 기준으로 하되, 이번 문제의 허용 개념 목록 밖의 문법은 사용하지 마세요.\n" + curriculum,
-    "이번 문제의 허용 개념: " + concepts.join(", "),
+    "아래 수업 노트 요약을 기준으로 설명하세요.\n" + curriculum,
+    problem
+      ? "이번 문제의 허용 개념 목록 밖의 문법은 사용하지 마세요. 허용 개념: " + concepts.join(", ")
+      : "학생이 특정 과제 없이 작성한 자유 코드입니다. 아래 수업 노트에 있는 문법만 사용하고, 과제를 임의로 가정하지 마세요.",
     "오류 종류: " + String(input.errorType || "실행 오류"),
     "실행 오류 메시지:\n" + String(input.error || "").slice(0, 4000),
     "학생 코드:\n" + input.code
@@ -147,7 +163,7 @@ async function createHint(input, request) {
   const containsCode = hint.includes("```") || /`[^`]+`/.test(hint) || /(^|\n)\s*(?:[A-Za-z_]\w*\s*(?:=|\+=|-=)|(?:print|return|if|for|while|def)\b)/m.test(hint);
   if (containsCode) hint = "오류가 난 부분에서 사용한 이름과 값의 종류를, 이번 문제에서 배운 개념과 비교해 보세요. 한 번에 한 부분씩 살펴보면 원인을 찾을 수 있어요.";
   if (hint.length < 30) hint = "이번 문제에서 배운 개념을 사용해 코드의 흐름을 다시 살펴보세요. 오류가 난 줄에서 정한 이름이나 값이 앞부분과 일치하는지 확인해 보시겠어요?";
-  return { hint: hint.slice(0, 1200), problemId: problem.id };
+  return { hint: hint.slice(0, 1200), problemId: problem?.id || null };
 }
 
 async function createStudent(input, request) {
@@ -191,19 +207,23 @@ async function createStudent(input, request) {
 
 async function recordTutorEvent(input, request) {
   const { user } = await verifyUser(request, ["student"]);
-  const problem = await getVisibleProblem(input.problemId, request.headers.authorization.slice(7));
+  const token = request.headers.authorization.slice(7);
+  const activeClass = await getVisibleClass(input.classId, token);
+  const problem = input.problemId ? await getVisibleProblem(input.problemId, token) : null;
+  if (problem && problem.class_id !== activeClass.id) throw Object.assign(new Error("문제와 선택한 수업이 일치하지 않습니다."), { status: 400 });
   const sessionId = String(input.sessionId || "");
   const stage = Number(input.stage);
   if (!/^[0-9a-f-]{36}$/i.test(sessionId) || !Number.isInteger(stage) || stage < 1 || stage > 3) {
     throw Object.assign(new Error("튜터 사용 기록이 올바르지 않습니다."), { status: 400 });
   }
-  const existing = await supabaseService(`/rest/v1/tutor_events?student_id=eq.${encodeURIComponent(user.id)}&problem_id=eq.${encodeURIComponent(problem.id)}&session_id=eq.${encodeURIComponent(sessionId)}&select=stage&order=stage.desc&limit=1`);
+  const problemFilter = problem ? `&problem_id=eq.${encodeURIComponent(problem.id)}` : "&problem_id=is.null";
+  const existing = await supabaseService(`/rest/v1/tutor_events?student_id=eq.${encodeURIComponent(user.id)}&class_id=eq.${encodeURIComponent(activeClass.id)}${problemFilter}&session_id=eq.${encodeURIComponent(sessionId)}&select=stage&order=stage.desc&limit=1`);
   const expectedStage = (existing[0]?.stage || 0) + 1;
   if (stage !== expectedStage) throw Object.assign(new Error("힌트 단계를 다시 확인해 주세요."), { status: 409 });
   await supabaseService("/rest/v1/tutor_events", {
     method: "POST",
     headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
-    body: JSON.stringify({ student_id: user.id, problem_id: problem.id, session_id: sessionId, stage, error_type: String(input.errorType || "실행 오류").slice(0, 60), line_number: Number.isInteger(input.lineNumber) ? input.lineNumber : null })
+    body: JSON.stringify({ student_id: user.id, class_id: activeClass.id, problem_id: problem?.id || null, session_id: sessionId, stage, error_type: String(input.errorType || "실행 오류").slice(0, 60), line_number: Number.isInteger(input.lineNumber) ? input.lineNumber : null })
   });
   return { saved: true };
 }
@@ -290,7 +310,7 @@ async function handleApi(request, response, url) {
     const requiredTables = [
       ["profiles", "id"], ["classes", "id"], ["enrollments", "class_id"], ["problems", "id"],
       ["problem_examples", "id"], ["test_cases", "id"], ["submissions", "id"],
-      ["submission_tests", "id"], ["tutor_events", "id"]
+      ["submission_tests", "id"], ["tutor_events", "class_id"]
     ];
     let missingTables = requiredTables.map(([table]) => table);
     let schemaErrors = [];

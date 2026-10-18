@@ -15,6 +15,8 @@ Render 무료 서비스는 사용이 없으면 잠들 수 있어 다시 접속�
 
 Supabase 스키마와 샘플은 `supabase/schema.sql`, `supabase/seed.sql`에 있습니다. Table Editor 사용법은 `SUPABASE_SETUP.md`, 교사용 AI 점검표는 `TEACHER_GUIDE.md`를 확인하세요. Supabase에서 스키마와 교사 계정을 설정한 뒤 실제 로그인·학생 계정·튜터 기록을 사용할 수 있습니다.
 
+학생은 자유 코드 튜터를 기본으로 사용하고, 필요할 때만 문제 풀이 모드로 전환합니다. 교사용 오류 확인 파일은 `teacher-tests/`에 있습니다. 이 파일은 AI 커리큘럼에 포함되지 않습니다.
+
 Judge0는 아직 연결하지 않았습니다. 이 동안 브라우저 Python 실행과 AI 튜터는 쓸 수 있지만 비공개 테스트케이스 채점은 비활성화됩니다.
 
 노트북 기반 튜터 문맥은 `curriculum.md`에 요약되어 있으며, Colab 사용자 메타데이터와 실행 출력은 포함하지 않습니다.

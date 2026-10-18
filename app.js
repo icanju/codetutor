@@ -12,6 +12,8 @@ let currentUser;
 let currentProfile;
 let currentClassId;
 let currentProblem;
+let availableProblems = [];
+let studentMode = "free";
 let pythonWorker;
 let workerReady;
 let pendingRun;
@@ -76,7 +78,7 @@ async function initialize() {
     sbClient = window.supabase.createClient(config.supabaseUrl, config.publishableKey);
     $("#connection-state").textContent = !health.supabaseConfigured
       ? "Supabase 서버 키 설정을 확인해 주세요"
-      : health.databaseReady ? "Supabase 연결 및 테이블 확인됨" : "supabase/schema.sql 실행 후 로그인할 수 있습니다";
+      : health.databaseReady ? "Supabase 연결 및 테이블 확인됨" : "Supabase 스키마/migration 적용 후 로그인할 수 있습니다";
     $("#login-submit").disabled = !health.databaseReady;
     const { data, error } = await sbClient.auth.getSession();
     if (error) throw error;
@@ -139,6 +141,8 @@ async function signOut() {
   currentProfile = null;
   currentClassId = null;
   currentProblem = null;
+  studentMode = "free";
+  document.querySelectorAll("[data-student-mode]").forEach(button => button.classList.toggle("active", button.dataset.studentMode === "free"));
   appShell.classList.add("hidden");
   loginScreen.classList.remove("hidden");
   $("#login-form").reset();
@@ -162,8 +166,10 @@ async function loadStudentClasses() {
   fillSelect($("#student-class"), classes, { emptyLabel: "등록된 수업이 없습니다" });
   if (!classes.length) {
     currentClassId = null;
+    availableProblems = [];
     fillSelect($("#problem-picker"), [], { emptyLabel: "교사가 수업에 등록하면 문제가 보여요" });
-    renderProblem(null);
+    currentProblem = null;
+    renderProblemMode();
     return;
   }
   currentClassId = classes[0].id;
@@ -176,24 +182,20 @@ async function loadStudentProblems() {
     toast("문제 목록을 불러오지 못했습니다.");
     return;
   }
-  fillSelect($("#problem-picker"), data || [], { emptyLabel: "공개된 문제가 없습니다" });
-  currentProblem = data?.[0] || null;
-  renderProblem(currentProblem);
+  availableProblems = data || [];
+  fillSelect($("#problem-picker"), availableProblems, { emptyLabel: "공개된 문제가 없습니다" });
+  currentProblem = studentMode === "problem" ? availableProblems[0] || null : null;
+  renderProblemMode();
+  if (studentMode === "problem" && currentProblem) renderProblem(currentProblem);
   if (currentProblem) await loadStudentHistory();
 }
 
 function renderProblem(problem) {
   currentProblem = problem;
-  $("#problem-title").textContent = problem?.title || "수업 문제를 기다리는 중";
-  $("#problem-description").textContent = problem?.description || "교사가 문제를 공개하면 여기에 표시됩니다.";
+  $("#problem-title").textContent = problem?.title || "공개된 문제가 없습니다";
+  $("#problem-description").textContent = problem?.description || "교사가 문제를 공개하면 이곳에서 선택할 수 있습니다.";
   $("#problem-points").textContent = problem ? `${problem.points}점` : "";
-  const conceptRow = $("#concept-row");
-  conceptRow.replaceChildren();
-  (problem?.allowed_concepts || []).forEach(concept => {
-    const tag = document.createElement("span");
-    tag.textContent = concept;
-    conceptRow.append(tag);
-  });
+  renderProblemMode();
   editor.value = "";
   $("#stdin-editor").value = "";
   $("#current-filename").textContent = "solution.py";
@@ -204,6 +206,28 @@ function renderProblem(problem) {
   setOutputState("실행 전");
   $("#submit-code").disabled = !problem || !judgeConfigured;
   $("#submit-code").title = judgeConfigured ? "테스트케이스로 채점" : "Judge0 API 키 설정 후 이용 가능";
+}
+
+function renderProblemMode() {
+  const problemMode = studentMode === "problem";
+  $("#problem-mode-context").classList.toggle("hidden", !problemMode || !currentProblem);
+  $("#submit-code").classList.toggle("hidden", !problemMode);
+  $("#grading-notice").classList.toggle("hidden", !problemMode || judgeConfigured);
+}
+
+function setStudentMode(mode) {
+  studentMode = mode;
+  document.querySelectorAll("[data-student-mode]").forEach(button => button.classList.toggle("active", button.dataset.studentMode === mode));
+  resetTutor();
+  if (mode === "problem") {
+    const selected = availableProblems.find(problem => problem.id === $("#problem-picker").value) || availableProblems[0] || null;
+    if (selected) $("#problem-picker").value = selected.id;
+    renderProblem(selected);
+    loadStudentHistory();
+  } else {
+    currentProblem = null;
+    renderProblemMode();
+  }
 }
 
 async function loadStudentHistory() {
@@ -360,23 +384,17 @@ function fillTutorRows(events, roster, problems) {
     return;
   }
   grouped.forEach(event => {
-    const row = [event.studentName, problemNames.get(event.problem_id) || "문제", event.error_type, `${event.stage}단계`, new Date(event.created_at).toLocaleString("ko-KR")];
+    const row = [event.studentName, event.problem_id ? problemNames.get(event.problem_id) || "문제" : "자유 코드", event.error_type, `${event.stage}단계`, new Date(event.created_at).toLocaleString("ko-KR")];
     const tr = document.createElement("tr"); row.forEach(value => { const td = document.createElement("td"); td.textContent = value; tr.append(td); }); rows.append(tr);
   });
   grouped.slice(0, 5).forEach(event => {
     const tr = document.createElement("tr");
-    [event.studentName, problemNames.get(event.problem_id) || "문제", `${event.stage}단계`, new Date(event.created_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })].forEach(value => { const td = document.createElement("td"); td.textContent = value; tr.append(td); }); summaryRows.append(tr);
+    [event.studentName, event.problem_id ? problemNames.get(event.problem_id) || "문제" : "자유 코드", `${event.stage}단계`, new Date(event.created_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })].forEach(value => { const td = document.createElement("td"); td.textContent = value; tr.append(td); }); summaryRows.append(tr);
   });
 }
 
 async function loadTutorRecords(roster = [], problems = []) {
-  if (!problems.length) {
-    $("#tutor-rows").innerHTML = '<tr><td colspan="5" class="empty-row">수업 문제를 만들면 기록을 확인할 수 있습니다.</td></tr>';
-    $("#overview-tutor-rows").innerHTML = '<tr><td colspan="4" class="empty-row">수업 문제를 만들면 기록을 확인할 수 있습니다.</td></tr>';
-    $("#stat-tutor-events").textContent = "0";
-    return;
-  }
-  const { data, error } = await sbClient.from("tutor_events").select("id,student_id,problem_id,session_id,stage,error_type,line_number,created_at,profiles(display_name,username)").in("problem_id", problems.map(problem => problem.id)).order("created_at", { ascending: false }).limit(300);
+  const { data, error } = await sbClient.from("tutor_events").select("id,student_id,class_id,problem_id,session_id,stage,error_type,line_number,created_at,profiles(display_name,username)").eq("class_id", currentClassId).order("created_at", { ascending: false }).limit(300);
   if (error) {
     $("#tutor-rows").innerHTML = '<tr><td colspan="5" class="empty-row">튜터 기록 테이블 준비 후 표시됩니다.</td></tr>';
     return;
@@ -455,9 +473,9 @@ function executePython(code, stdin) {
 }
 
 async function recordTutorStage(stage) {
-  if (!currentError || !currentProblem || !tutorSessionId) return;
+  if (!currentError || !currentClassId || !tutorSessionId) return;
   try {
-    await apiPost("/api/tutor/events", { problemId: currentProblem.id, sessionId: tutorSessionId, stage, errorType: currentError.kind, lineNumber: currentError.line });
+    await apiPost("/api/tutor/events", { classId: currentClassId, problemId: currentProblem?.id || null, sessionId: tutorSessionId, stage, errorType: currentError.kind, lineNumber: currentError.line });
   } catch {
     toast("튜터 도움 기록을 저장하지 못했습니다.");
   }
@@ -514,7 +532,7 @@ async function runCode() {
 }
 
 async function nextHint() {
-  if (!currentError || !currentProblem) return;
+  if (!currentError || !currentClassId) return;
   if (currentStep === 1) {
     currentStep = 2;
     const line = currentError.line ? `${currentError.line}행을 확인해 보세요.` : "실행 결과에서 오류가 난 부분을 살펴보세요.";
@@ -530,7 +548,7 @@ async function nextHint() {
       const response = await fetch("/api/hints", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${await sessionToken()}` },
-        body: JSON.stringify({ problemId: currentProblem.id, code: currentError.code, error: currentError.raw, errorType: currentError.kind, line: currentError.line })
+        body: JSON.stringify({ classId: currentClassId, problemId: currentProblem?.id || null, code: currentError.code, error: currentError.raw, errorType: currentError.kind, line: currentError.line })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "AI 힌트를 불러오지 못했습니다.");
@@ -716,6 +734,7 @@ document.querySelectorAll("[data-login-role]").forEach(button => button.addEvent
 $("#login-form").addEventListener("submit", login);
 $("#signout-button").addEventListener("click", signOut);
 $("#student-class").addEventListener("change", async event => { currentClassId = event.target.value; await loadStudentProblems(); });
+document.querySelectorAll("[data-student-mode]").forEach(button => button.addEventListener("click", () => setStudentMode(button.dataset.studentMode)));
 $("#problem-picker").addEventListener("change", async event => {
   const { data } = await sbClient.from("problems").select("id,title,description,allowed_concepts,points,status").eq("id", event.target.value).single();
   renderProblem(data || null);

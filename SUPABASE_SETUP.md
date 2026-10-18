@@ -76,7 +76,7 @@ where id = (select id from auth.users where email = 'admin@example.com');
 
 ## 6. 업그레이드와 이미 만든 테이블
 
-이전에 받은 기본 `schema.sql`을 이미 실행한 경우 전체 스키마를 다시 실행하지 마세요. `supabase/migrations/20261018_admin_access.sql`을 먼저 실행하고, 이어서 `supabase/migrations/20261018_tutor_events.sql`과 `supabase/migrations/20261018_enrollments_fix.sql`을 실행해 관리자 권한, 튜터 기록, 학생-수업 연결을 보완합니다.
+이전에 받은 기본 `schema.sql`을 이미 실행한 경우 전체 스키마를 다시 실행하지 마세요. `supabase/migrations/20261018_admin_access.sql`을 먼저 실행하고, 이어서 `supabase/migrations/20261018_tutor_events.sql`, `supabase/migrations/20261018_enrollments_fix.sql`, `supabase/migrations/20261018_free_tutor.sql`을 실행합니다. 마지막 migration은 문제 ID 없이도 자유 코드 튜터 사용 기록을 수업과 연결하도록 변경합니다.
 
 테이블이 일부만 있거나 SQL 실행 중 오류가 발생하면 오류 메시지를 그대로 알려주세요. 기존 테이블을 지우지 말고, 현재 상태에 맞는 추가 migration으로 고치겠습니다.
 
