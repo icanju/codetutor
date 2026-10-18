@@ -196,6 +196,7 @@ function renderProblem(problem) {
   });
   editor.value = "";
   $("#stdin-editor").value = "";
+  $("#current-filename").textContent = "solution.py";
   updateLineNumbers();
   resetTutor();
   output.textContent = "코드를 작성한 뒤 실행해 보세요.";
@@ -722,7 +723,21 @@ $("#problem-picker").addEventListener("change", async event => {
 });
 $("#run-code").addEventListener("click", runCode);
 $("#submit-code").addEventListener("click", submitCode);
-$("#clear-code").addEventListener("click", () => { editor.value = ""; updateLineNumbers(); resetTutor(); output.textContent = "코드를 작성한 뒤 실행해 보세요."; output.className = ""; setOutputState("실행 전"); editor.focus(); });
+$("#clear-code").addEventListener("click", () => { editor.value = ""; $("#current-filename").textContent = "solution.py"; updateLineNumbers(); resetTutor(); output.textContent = "코드를 작성한 뒤 실행해 보세요."; output.className = ""; setOutputState("실행 전"); editor.focus(); });
+$("#code-file").addEventListener("change", async event => {
+  const file = event.target.files?.[0];
+  event.target.value = "";
+  if (!file) return;
+  if (!file.name.toLowerCase().endsWith(".py")) return toast("Python .py 파일만 열 수 있습니다.");
+  if (file.size > 20000) return toast("테스트 파일은 20KB 이하만 열 수 있습니다.");
+  editor.value = await file.text();
+  $("#current-filename").textContent = file.name;
+  updateLineNumbers();
+  resetTutor();
+  output.textContent = "파일을 열었습니다. 실행해 보세요.";
+  output.className = "";
+  setOutputState("실행 전");
+});
 editor.addEventListener("input", updateLineNumbers);
 editor.addEventListener("scroll", () => { lineNumbers.scrollTop = editor.scrollTop; });
 editor.addEventListener("keydown", event => {
