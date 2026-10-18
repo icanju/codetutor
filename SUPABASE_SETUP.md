@@ -41,8 +41,8 @@ SQL Editor는 관리자 권한으로 쿼리를 실행하기 때문에 SQL Editor
 
 ## 4. 교사와 관리자 계정 준비
 
-1. `Authentication` → `Users` → `Add user`에서 교사용 이메일과 비밀번호로 계정을 하나 만듭니다. 이메일 확인 설정이 켜져 있으면 계정을 Confirm 처리합니다.
-2. `SQL Editor`에서 다음 조회를 실행해 해당 계정의 `id`와 역할을 찾습니다. 이메일 부분은 실제 교사 이메일로 바꿉니다.
+1. `Authentication` → `Users` → `Add user`에서 이메일과 비밀번호를 입력해 Auth 계정을 만듭니다. 비밀번호는 이 화면에서 정하며, 아래 SQL은 비밀번호를 설정하거나 바꾸지 않습니다. 이미 계정을 만들었다면 그때 정한 비밀번호를 사용합니다.
+2. 새 Auth 계정은 앱의 `profiles.role`이 기본적으로 `student`입니다. `SQL Editor`에서 다음 조회를 실행해 계정과 현재 역할을 확인합니다. 이메일 부분은 실제 관리자 이메일로 바꿉니다.
 
 ```sql
 select u.id, u.email, p.role
@@ -51,15 +51,15 @@ join public.profiles p on p.id = u.id
 where u.email = 'teacher@example.com';
 ```
 
-3. 최초 교사라면 다음 문장을 실행해 역할을 바꿉니다.
+3. 기존 계정을 관리자 화면으로 쓰려면 역할을 `admin`으로 지정합니다. 이메일은 실제 관리자 이메일로 바꾸세요.
 
 ```sql
 update public.profiles
-set role = 'teacher'
-where id = (select id from auth.users where email = 'teacher@example.com');
+set role = 'admin'
+where id = (select id from auth.users where email = 'admin@example.com');
 ```
 
-관리자 계정으로 지정하려면 `teacher` 대신 `admin`을 사용합니다. 이 작업은 프로젝트 소유자가 SQL Editor에서만 해야 합니다. 브라우저 사용자는 자기 역할을 바꿀 수 없습니다.
+별도의 교사 계정도 만들려면 해당 교사의 Auth 이메일로 같은 문장을 실행하되 `admin` 대신 `teacher`를 지정합니다. 역할 변경은 프로젝트 소유자가 SQL Editor에서만 해야 하며, 브라우저 사용자는 자기 역할을 바꿀 수 없습니다.
 
 ## 5. Table Editor에서 샘플 자료 넣기
 
