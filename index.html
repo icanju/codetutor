@@ -3,44 +3,68 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f5f6f4">
-  <title>코드온 | 파이썬 실습</title>
+  <meta name="theme-color" content="#f4f6f3">
+  <title>코드온 | 코드 작성 및 AI 튜터 활용 시스템</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="#" aria-label="코드온 홈"><span class="brand-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6M16 6l6 6-6 6M14 3l-4 18"/></svg></span><span>codeon<span class="brand-dot">.</span></span></a>
-    <div class="course-context"><span class="course-tag">파이썬 기초</span><span class="context-separator">/</span><span>문제 04</span></div>
-    <div class="user-chip"><span class="user-avatar">민</span><span>김민서</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></div>
-  </header>
+  <section class="login-screen" id="login-screen">
+    <div class="login-intro">
+      <a class="brand brand-light" href="#"><span class="brand-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6M16 6l6 6-6 6M14 3l-4 18"/></svg></span><span>codeon<span class="brand-dot">.</span></span></a>
+      <div class="intro-copy"><span class="intro-kicker">LEARN BY DEBUGGING</span><h1>코드 작성 및<br>AI 튜터 활용 시스템</h1><p>직접 코드를 작성하고, 단계별 힌트로<br>오류를 스스로 해결해 보세요.</p></div>
+      <div class="intro-bottom"><span>01 / BUILD</span><span>02 / UNDERSTAND</span><span>03 / IMPROVE</span></div>
+    </div>
+    <div class="login-side"><form class="login-card" id="login-form">
+      <div class="login-heading"><span class="eyebrow">CODEON LEARNING SPACE</span><h2>로그인</h2><p>교사가 만든 계정으로 시작하세요.</p></div>
+      <div class="role-switch" role="group" aria-label="계정 유형"><button type="button" class="selected" data-login-role="student">학생</button><button type="button" data-login-role="teacher">교사 / 관리자</button></div>
+      <label class="form-label" for="login-id" id="login-id-label">학생 아이디</label><input class="form-input" id="login-id" name="login-id" autocomplete="username" required placeholder="교사가 알려준 아이디">
+      <label class="form-label" for="login-password">비밀번호</label><input class="form-input" id="login-password" name="password" type="password" autocomplete="current-password" required placeholder="비밀번호">
+      <button class="button-primary login-submit" id="login-submit" type="submit">학생으로 로그인 <span>→</span></button>
+      <p class="login-message" id="login-message" role="status" aria-live="polite"></p>
+      <p class="login-footnote">학생 계정이 없나요? 교사에게 아이디와 비밀번호를 받아 주세요.</p>
+    </form><div class="connection-note"><i></i><span id="connection-state">보안 연결 확인 중</span></div></div>
+  </section>
 
-  <main class="page">
-    <section class="task-heading" aria-labelledby="task-title">
-      <div class="task-index">04</div>
-      <div class="task-copy"><div class="task-meta"><span>리스트와 반복문</span><span class="meta-divider"></span><span>예상 시간 10분</span></div><h1 id="task-title">점수의 평균 구하기</h1><p>점수 목록의 평균을 계산해 출력하세요.</p></div>
-      <div class="lesson-scope"><span class="scope-dot"></span><span>배운 문법 범위</span><button id="scope-button" aria-expanded="false" aria-controls="scope-popover" aria-label="수업 문법 범위 보기"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/></svg></button><div class="scope-popover" id="scope-popover" hidden><span>리스트</span><span>for 반복문</span><span>len()</span><span>산술 연산</span></div></div>
-    </section>
+  <div class="app-shell hidden" id="app-shell">
+    <header class="topbar"><a class="brand" href="#" aria-label="코드온"><span class="brand-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6M16 6l6 6-6 6M14 3l-4 18"/></svg></span><span>codeon<span class="brand-dot">.</span></span></a><div class="system-title">코드 작성 및 AI 튜터 활용 시스템</div><div class="user-menu"><span class="user-avatar" id="user-avatar">학</span><span class="user-name" id="user-name"></span><span class="role-pill" id="user-role"></span><button class="signout-button" id="signout-button">로그아웃</button></div></header>
 
-    <div class="workspace">
-      <section class="ide" aria-label="파이썬 코드 편집기">
-        <div class="ide-topline"><div class="file-tab"><span class="python-badge">Py</span><span>solution.py</span><span class="unsaved-mark" title="수정 내용 있음"></span></div><div class="ide-tools"><span class="runtime-label"><i></i> Python 3</span><button class="clear-button" id="clear-code" title="코드 지우기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 14h10l1-14M9 7V4h6v3"/></svg><span>지우기</span></button></div></div>
-        <div class="editor-wrap"><div class="line-numbers" id="line-numbers" aria-hidden="true">1</div><textarea id="code-editor" aria-label="파이썬 코드" placeholder="여기에 파이썬 코드를 작성하세요." spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea></div>
-        <div class="ide-actions"><span class="keyboard-hint"><kbd>Ctrl</kbd><span>+</span><kbd>Enter</kbd> 실행</span><button class="run-button" id="run-code"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 12 7-12 7V5Z"/></svg><span>실행</span></button></div>
-        <section class="output-panel" aria-label="실행 결과"><div class="output-header"><div><span class="terminal-icon">&gt;_</span><strong>실행 결과</strong></div><span class="output-state" id="output-state">실행 전</span></div><pre id="output-content" aria-live="polite">코드를 작성한 뒤 실행해 보세요.</pre></section>
+    <main class="main-content">
+      <section class="student-view hidden" id="student-view">
+        <div class="section-heading"><div><span class="eyebrow">STUDENT WORKSPACE</span><h1>오늘의 코드 연습</h1><p>문제를 고르고 직접 실행해 보세요. 오류가 생기면 튜터가 한 단계씩 도와드려요.</p></div><div class="course-picker"><label for="student-class">수업</label><select id="student-class"></select></div></div>
+        <div class="student-grid">
+          <section class="student-main">
+            <div class="problem-bar"><div class="problem-picker-wrap"><label for="problem-picker">문제</label><select id="problem-picker"></select></div><span class="problem-points" id="problem-points"></span></div>
+            <article class="problem-summary"><div class="problem-category" id="problem-category">수업 문제</div><h2 id="problem-title">문제를 불러오는 중</h2><p id="problem-description">수업에 등록된 문제를 선택하세요.</p><div class="concept-row" id="concept-row"></div></article>
+            <section class="ide" aria-label="파이썬 코드 편집기">
+              <div class="ide-topline"><div class="file-tab"><span class="python-badge">Py</span><span>solution.py</span><span class="unsaved-mark"></span></div><div class="ide-tools"><span class="runtime-label"><i></i> Python 3</span><button class="clear-button" id="clear-code" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 14h10l1-14M9 7V4h6v3"/></svg>지우기</button></div></div>
+              <div class="editor-wrap"><div class="line-numbers" id="line-numbers" aria-hidden="true">1</div><textarea id="code-editor" aria-label="파이썬 코드" placeholder="여기에 파이썬 코드를 작성하세요." spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea></div>
+              <div class="ide-actions"><span class="keyboard-hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> 실행</span><div class="run-actions"><button class="button-run" id="run-code" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 12 7-12 7V5Z"/></svg>실행</button><button class="button-submit" id="submit-code" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>제출하고 채점</button></div></div>
+              <section class="output-panel" aria-label="실행 결과"><div class="output-header"><div><span class="terminal-icon">&gt;_</span><strong>실행 결과</strong></div><span class="output-state" id="output-state">실행 전</span></div><pre id="output-content" aria-live="polite">코드를 작성한 뒤 실행해 보세요.</pre></section>
+            </section>
+          </section>
+
+          <aside class="student-aside"><section class="tutor" aria-label="AI 튜터"><div class="tutor-header"><div class="tutor-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a7 7 0 0 0-4 12.7V19h8v-3.3A7 7 0 0 0 12 3ZM9 22h6M9 10l2 2 4-4"/></svg></div><div class="tutor-title"><h2>AI 튜터</h2><p>정답 대신, 생각할 방향을 도와요</p></div><span class="no-answer">정답 코드 없음</span></div><div class="tutor-content" id="tutor-content" aria-live="polite"><div class="tutor-empty"><div class="empty-glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1"/><circle cx="12" cy="12" r="4"/></svg></div><h3>막히면 같이 살펴봐요</h3><p>코드를 실행하면 오류 종류부터 차근차근 확인해요.</p></div></div><div class="tutor-footer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/></svg><span>교사가 지정한 문법 범위 안에서 안내합니다.</span></div></section>
+            <section class="history-panel"><div class="panel-heading"><div><span class="eyebrow">MY RECORD</span><h2>최근 채점 기록</h2></div><button class="text-button" id="refresh-history" type="button">새로고침</button></div><div class="history-list" id="student-history"><p class="empty-row">로그인 후 기록을 불러옵니다.</p></div></section>
+          </aside>
+        </div>
       </section>
 
-      <aside class="tutor" aria-label="AI 튜터">
-        <div class="tutor-header"><div class="tutor-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a7 7 0 0 0-4 12.7V19h8v-3.3A7 7 0 0 0 12 3ZM9 22h6M9 10l2 2 4-4"/></svg></div><div class="tutor-title"><h2>AI 튜터</h2><p>정답 대신, 다음 생각을 도와요</p></div><span class="no-answer">정답 코드 없음</span></div>
-        <div class="tutor-content" id="tutor-content" aria-live="polite"><div class="tutor-empty"><div class="empty-glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1"/><circle cx="12" cy="12" r="4"/></svg></div><h3>막히면 같이 살펴봐요</h3><p>코드를 실행하면 오류부터 함께 확인해요.</p></div></div>
-        <div class="tutor-footer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/></svg><span>수업에서 배운 문법 안에서만 안내합니다.</span></div>
-      </aside>
-    </div>
-    <footer class="page-footer"><span>CODEON LEARNING SPACE</span><span>실행은 내 브라우저 안에서 처리됩니다.</span></footer>
-  </main>
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+      <section class="teacher-view hidden" id="teacher-view">
+        <div class="section-heading"><div><span class="eyebrow">TEACHER CONSOLE</span><h1>수업과 학습 기록</h1><p>계정, 문제, 튜터 도움 단계를 관리합니다.</p></div><div class="course-picker"><label for="teacher-class">수업</label><select id="teacher-class"></select></div></div>
+        <nav class="teacher-tabs" aria-label="교사 메뉴"><button class="active" data-teacher-tab="overview">요약</button><button data-teacher-tab="accounts">학생 계정</button><button data-teacher-tab="problems">문제·테스트</button><button data-teacher-tab="tutor">튜터 기록</button></nav>
+        <section class="teacher-tab-panel" data-teacher-panel="overview"><form class="class-create-bar" id="create-class-form"><label for="new-class-name">새 수업</label><input class="form-input" id="new-class-name" required maxlength="80" placeholder="예: 2학년 파이썬 기초"><button class="button-primary" type="submit">수업 만들기</button></form><div class="stat-grid"><article><span>등록 학생</span><strong id="stat-students">—</strong></article><article><span>공개 문제</span><strong id="stat-problems">—</strong></article><article><span>최근 제출</span><strong id="stat-submissions">—</strong></article><article><span>튜터 기록</span><strong id="stat-tutor-events">—</strong></article></div><div class="teacher-columns"><section class="data-panel"><div class="panel-heading"><div><span class="eyebrow">STUDENTS</span><h2>학생 현황</h2></div></div><div class="table-scroll"><table><thead><tr><th>이름</th><th>아이디</th><th>최근 채점</th><th>점수</th></tr></thead><tbody id="student-overview-rows"><tr><td colspan="4" class="empty-row">수업을 선택해 주세요.</td></tr></tbody></table></div></section><section class="data-panel"><div class="panel-heading"><div><span class="eyebrow">RECENT ACTIVITY</span><h2>최근 튜터 도움</h2></div><button class="text-button" id="refresh-overview" type="button">새로고침</button></div><div class="table-scroll"><table><thead><tr><th>학생</th><th>문제</th><th>도움 단계</th><th>시각</th></tr></thead><tbody id="overview-tutor-rows"><tr><td colspan="4" class="empty-row">아직 기록이 없습니다.</td></tr></tbody></table></div></section></div></section>
+        <section class="teacher-tab-panel hidden" data-teacher-panel="accounts"><div class="teacher-columns"><form class="data-panel form-panel" id="student-create-form"><div class="panel-heading"><div><span class="eyebrow">NEW ACCOUNT</span><h2>학생 계정 발급</h2></div></div><label class="form-label" for="new-student-name">학생 이름</label><input class="form-input" id="new-student-name" required maxlength="60" placeholder="학생 이름"><label class="form-label" for="new-student-id">로그인 아이디</label><input class="form-input" id="new-student-id" required minlength="3" maxlength="24" pattern="[A-Za-z0-9_-]+" placeholder="영문 소문자·숫자·_·-"><label class="form-label" for="new-student-password">초기 비밀번호</label><input class="form-input" id="new-student-password" type="text" required minlength="8" maxlength="72" placeholder="8자 이상"><label class="form-label" for="new-student-class">등록할 수업</label><select class="form-input" id="new-student-class" required></select><button class="button-primary" type="submit">계정 만들고 수업에 등록</button><p class="form-message" id="student-create-message" role="status"></p><p class="form-help">비밀번호를 학생에게 안전하게 전달하고, 첫 로그인 뒤 바꾸도록 안내해 주세요.</p></form><section class="data-panel"><div class="panel-heading"><div><span class="eyebrow">ROSTER</span><h2>수업 학생</h2></div><button class="text-button" id="refresh-roster" type="button">새로고침</button></div><div class="table-scroll"><table><thead><tr><th>이름</th><th>아이디</th><th>가입일</th></tr></thead><tbody id="roster-rows"><tr><td colspan="3" class="empty-row">학생이 없습니다.</td></tr></tbody></table></div></section></div></section>
+        <section class="teacher-tab-panel hidden" data-teacher-panel="problems"><div class="teacher-columns"><form class="data-panel form-panel" id="problem-create-form"><div class="panel-heading"><div><span class="eyebrow">NEW PROBLEM</span><h2>문제 등록</h2></div></div><label class="form-label" for="new-problem-title">문제 제목</label><input class="form-input" id="new-problem-title" required placeholder="문제 제목"><label class="form-label" for="new-problem-description">문제 설명</label><textarea class="form-input form-textarea" id="new-problem-description" required placeholder="학생이 풀 문제를 간단히 설명하세요."></textarea><label class="form-label" for="new-problem-concepts">허용 문법 범위</label><input class="form-input" id="new-problem-concepts" required placeholder="예: 리스트, for 반복문, 산술 연산"><label class="form-label" for="new-problem-points">배점</label><input class="form-input" id="new-problem-points" type="number" min="1" max="10000" value="100" required><label class="form-label" for="new-problem-examples">학생 공개 예시 입출력 (JSON)</label><textarea class="form-input form-textarea json-input" id="new-problem-examples" placeholder='[{"input":"10 20","output":"30"}]'></textarea><label class="form-label" for="new-problem-tests">비공개 채점 케이스 (JSON)</label><textarea class="form-input form-textarea json-input" id="new-problem-tests" placeholder='[{"input":"1 2","output":"3","points":50},{"input":"-2 4","output":"2","points":50}]'></textarea><label class="publish-toggle"><input id="new-problem-published" type="checkbox" checked><span>저장 후 학생에게 공개</span></label><button class="button-primary" type="submit">문제와 테스트 저장</button><p class="form-message" id="problem-create-message" role="status"></p><p class="form-help">테스트 JSON은 각 항목에 input, output을 넣습니다. 입력과 정답은 학생에게 공개되지 않습니다.</p></form><section class="data-panel"><div class="panel-heading"><div><span class="eyebrow">ASSIGNMENTS</span><h2>등록 문제</h2></div><button class="text-button" id="refresh-problems" type="button">새로고침</button></div><div class="problem-list" id="teacher-problems"><p class="empty-row">문제가 없습니다.</p></div></section></div></section>
+        <section class="teacher-tab-panel hidden" data-teacher-panel="tutor"><section class="data-panel"><div class="panel-heading"><div><span class="eyebrow">TUTOR USAGE</span><h2>학생별 AI 튜터 활용 단계</h2><p>힌트 문장과 학생 코드가 아닌, 어떤 단계까지 사용했는지만 기록합니다.</p></div><button class="text-button" id="refresh-tutor" type="button">새로고침</button></div><div class="table-scroll"><table><thead><tr><th>학생</th><th>문제</th><th>오류 종류</th><th>도움 단계</th><th>가장 최근</th></tr></thead><tbody id="tutor-rows"><tr><td colspan="5" class="empty-row">기록이 없습니다.</td></tr></tbody></table></div></section></section>
+      </section>
+      <div class="global-message" id="global-message" role="status" aria-live="polite"></div>
+      <footer class="page-footer"><span>CODEON LEARNING SPACE</span><span>실행 결과와 채점 기록은 분리되어 저장됩니다.</span></footer>
+    </main>
+  </div>
   <script src="app.js"></script>
 </body>
 </html>

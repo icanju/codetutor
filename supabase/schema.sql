@@ -48,6 +48,19 @@ as $$
   );
 $$;
 
+create function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.profiles p
+    where p.id = (select auth.uid()) and p.role = 'admin'
+  );
+$$;
+
 create table public.classes (
   id uuid primary key default gen_random_uuid(),
   teacher_id uuid not null references public.profiles(id) on delete restrict,
@@ -62,7 +75,7 @@ create table public.enrollments (
   primary key (class_id, student_id)
 );
 
-create function public.teaches_class(target_class uuid)
+create function public.can_manage_class(target_class uuid)
 returns boolean
 language sql
 stable
@@ -71,9 +84,17 @@ set search_path = ''
 as $$
   select exists (
     select 1 from public.classes c
-    where c.id = target_class and c.teacher_id = (select auth.uid())
+    where c.id = target_class and (c.teacher_id = (select auth.uid()) or public.is_admin())
   ) and public.is_teacher();
 $$;
+
+create function public.teaches_class(target_class uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$ select public.can_manage_class(target_class); $$;
 
 create function public.is_enrolled(target_class uuid)
 returns boolean
@@ -138,6 +159,19 @@ create table public.submission_tests (
   created_at timestamptz not null default now()
 );
 
+create table public.tutor_events (
+  id uuid primary key default gen_random_uuid(),
+  student_id uuid not null references public.profiles(id) on delete cascade,
+  problem_id uuid not null references public.problems(id) on delete cascade,
+  session_id uuid not null,
+  stage smallint not null check (stage between 1 and 3),
+  error_type text not null,
+  line_number integer,
+  created_at timestamptz not null default now(),
+  unique (session_id, stage)
+);
+create index tutor_events_problem_time_idx on public.tutor_events (problem_id, created_at desc);
+
 alter table public.profiles enable row level security;
 alter table public.classes enable row level security;
 alter table public.enrollments enable row level security;
@@ -146,10 +180,11 @@ alter table public.problem_examples enable row level security;
 alter table public.test_cases enable row level security;
 alter table public.submissions enable row level security;
 alter table public.submission_tests enable row level security;
+alter table public.tutor_events enable row level security;
 
 create policy "profiles_read_self_or_teacher" on public.profiles for select to authenticated
   using (
-    id = (select auth.uid()) or exists (
+    id = (select auth.uid()) or public.is_admin() or exists (
       select 1 from public.enrollments e
       join public.classes c on c.id = e.class_id
       where e.student_id = profiles.id and c.teacher_id = (select auth.uid()) and public.is_teacher()
@@ -159,14 +194,14 @@ create policy "profiles_update_display_name" on public.profiles for update to au
   using (id = (select auth.uid())) with check (id = (select auth.uid()));
 
 create policy "classes_read_members" on public.classes for select to authenticated
-  using (teacher_id = (select auth.uid()) or public.is_enrolled(id));
+  using (teacher_id = (select auth.uid()) or public.is_enrolled(id) or public.is_admin());
 create policy "classes_teacher_insert" on public.classes for insert to authenticated
   with check (teacher_id = (select auth.uid()) and public.is_teacher());
 create policy "classes_teacher_update" on public.classes for update to authenticated
-  using (teacher_id = (select auth.uid()) and public.is_teacher())
-  with check (teacher_id = (select auth.uid()) and public.is_teacher());
+  using (public.can_manage_class(id))
+  with check ((teacher_id = (select auth.uid()) or public.is_admin()) and public.is_teacher());
 create policy "classes_teacher_delete" on public.classes for delete to authenticated
-  using (teacher_id = (select auth.uid()) and public.is_teacher());
+  using (public.can_manage_class(id));
 
 create policy "enrollments_read_self_or_teacher" on public.enrollments for select to authenticated
   using (student_id = (select auth.uid()) or public.teaches_class(class_id));
@@ -220,9 +255,15 @@ create policy "submission_tests_teacher_only" on public.submission_tests for sel
     where s.id = submission_id and public.teaches_class(p.class_id)
   ));
 
+create policy "tutor_events_read_own_or_class_teacher" on public.tutor_events for select to authenticated
+  using (student_id = (select auth.uid()) or exists (
+    select 1 from public.problems p where p.id = problem_id and public.teaches_class(p.class_id)
+  ));
+
 grant usage on schema public to authenticated;
 grant select on public.profiles, public.classes, public.enrollments, public.problems,
-  public.problem_examples, public.test_cases, public.submissions, public.submission_tests to authenticated;
+  public.problem_examples, public.test_cases, public.submissions, public.submission_tests,
+  public.tutor_events to authenticated;
 grant update (display_name) on public.profiles to authenticated;
 grant insert, update, delete on public.classes, public.enrollments, public.problems, public.problem_examples, public.test_cases to authenticated;
 grant insert (problem_id, student_id, source_code) on public.submissions to authenticated;
