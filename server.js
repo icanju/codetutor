@@ -287,21 +287,42 @@ async function handleApi(request, response, url) {
     return send(response, 200, { supabaseUrl, publishableKey: publishableKey || null });
   }
   if (request.method === "GET" && url.pathname === "/api/health") {
-    const requiredTables = ["profiles", "classes", "enrollments", "problems", "problem_examples", "test_cases", "submissions", "submission_tests", "tutor_events"];
-    let missingTables = requiredTables;
+    const requiredTables = [
+      ["profiles", "id"], ["classes", "id"], ["enrollments", "class_id"], ["problems", "id"],
+      ["problem_examples", "id"], ["test_cases", "id"], ["submissions", "id"],
+      ["submission_tests", "id"], ["tutor_events", "id"]
+    ];
+    let missingTables = requiredTables.map(([table]) => table);
+    let schemaErrors = [];
     if (publishableKey && secretKey) {
-      const checks = await Promise.all(requiredTables.map(async table => {
+      const checks = await Promise.all(requiredTables.map(async ([table, column]) => {
         try {
-          await supabaseService(`/rest/v1/${table}?select=id&limit=0`);
+          const result = await fetch(`${supabaseUrl}/rest/v1/${table}?select=${column}&limit=0`, { headers: serviceHeaders() });
+          if (!result.ok) {
+            const detail = await result.json().catch(() => ({}));
+            return { table, exists: false, status: result.status, code: detail.code || "API_ERROR" };
+          }
           return { table, exists: true };
         } catch {
-          return { table, exists: false };
+          return { table, exists: false, status: 0, code: "NETWORK_ERROR" };
         }
       }));
       missingTables = checks.filter(check => !check.exists).map(check => check.table);
+      schemaErrors = checks.filter(check => !check.exists).map(({ table, status, code }) => ({ table, status, code }));
     }
     const databaseReady = Boolean(publishableKey && secretKey) && missingTables.length === 0;
-    return send(response, 200, { ok: true, aiConfigured: Boolean(process.env.GEMINI_API_KEY), supabaseConfigured: Boolean(publishableKey && secretKey), databaseReady, missingTables, judgeConfigured: Boolean(process.env.JUDGE0_API_KEY) });
+    let sampleDataReady = false;
+    if (databaseReady) {
+      try {
+        const sampleIds = ["7480771d-297c-4e22-bb60-9e2d91621aa1", "2a1292d3-8c95-46a6-8d28-1b13f35dbd4d", "7a12c2a3-bb7a-449e-b328-09950e358039"];
+        const [problems, cases] = await Promise.all([
+          supabaseService(`/rest/v1/problems?id=in.(${sampleIds.join(",")})&select=id`),
+          supabaseService(`/rest/v1/test_cases?problem_id=in.(${sampleIds.join(",")})&select=id`)
+        ]);
+        sampleDataReady = problems.length === sampleIds.length && cases.length >= 8;
+      } catch {}
+    }
+    return send(response, 200, { ok: true, aiConfigured: Boolean(process.env.GEMINI_API_KEY), supabaseConfigured: Boolean(publishableKey && secretKey), databaseReady, sampleDataReady, missingTables, schemaErrors, judgeConfigured: Boolean(process.env.JUDGE0_API_KEY) });
   }
   if (request.method !== "POST") return false;
   if (url.pathname === "/api/hints") {
