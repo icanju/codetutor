@@ -18,6 +18,7 @@ loadLocalEnv();
 
 const root = __dirname;
 const port = Number(process.env.PORT || 3000);
+const curriculum = fs.readFileSync(path.join(root, "curriculum.md"), "utf8");
 const assets = {
   "/": ["index.html", "text/html; charset=utf-8"],
   "/styles.css": ["styles.css", "text/css; charset=utf-8"],
@@ -71,6 +72,7 @@ async function createHint(input) {
     "오류 종류와 줄 번호는 이미 앞 단계에서 학생에게 제공했습니다. 이 정보는 반복하지 말고, 왜 이런 오류가 생기는지 학생이 생각하도록 안내하세요.",
     "첫 문장은 관련된 배운 개념을 설명하고, 다음 문장은 학생 코드에서 그 개념을 어떻게 점검할지 질문하세요.",
     "절대로 수정된 코드, 정답, 코드 조각, 의사코드를 생성하지 마세요. 코드 인용부호나 Markdown을 쓰지 마세요. 새 라이브러리나 수업 범위 밖의 문법도 제안하지 마세요.",
+    "아래 수업 노트 요약을 설명의 기준으로 삼으세요. 전체 범위에 있는 개념이라도 이 문제의 배운 개념 목록에 없으면 사용하지 마세요.\n" + curriculum,
     "배운 개념: " + (Array.isArray(input.concepts) ? input.concepts.join(", ") : "변수, 리스트, 반복문"),
     "오류 종류: " + String(input.errorType || "실행 오류"),
     "실행 오류 메시지:\n" + String(input.error || "").slice(0, 4000),

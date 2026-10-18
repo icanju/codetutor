@@ -13,4 +13,6 @@ Node.js 20 이상에서 `npm start`를 실행하면 3000번 포트에서 앱이 
 
 Render 무료 서비스는 사용이 없으면 잠들 수 있어 다시 접속할 때 시작 지연이 생길 수 있습니다. AI 무료 사용량과 모델 사용 가능 여부는 Google AI Studio의 정책을 따릅니다.
 
-현재 버전은 데이터베이스를 사용하지 않습니다. 로그인, 학생 계정, 문제 저장, 채점 기록을 추가할 때 Supabase를 연결하는 것을 권장합니다.
+Supabase 준비 파일은 `supabase/schema.sql`, `supabase/seed.sql`에 있습니다. 자세한 프로젝트 생성·권한 설정은 `SUPABASE_SETUP.md`, 교사 예시와 AI 튜터 점검표는 `TEACHER_GUIDE.md`를 확인하세요. 현재는 SQL 스키마만 준비되어 있고 실제 로그인·데이터 저장 연결은 프로젝트별 URL/키를 받아야 완료할 수 있습니다.
+
+노트북 기반 튜터 문맥은 `curriculum.md`에 요약되어 있으며, Colab 사용자 메타데이터와 실행 출력은 포함하지 않습니다.
