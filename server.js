@@ -30,6 +30,7 @@ const assets = {
   "/app.js": ["app.js", "text/javascript; charset=utf-8"],
   "/python-worker.js": ["python-worker.js", "text/javascript; charset=utf-8"],
   "/ju-smile-white.svg": ["ju-smile-white.svg", "image/svg+xml; charset=utf-8"],
+  "/privacy-policy.html": ["privacy-policy.html", "text/html; charset=utf-8"],
   "/__preview-bridge.js": ["__preview-bridge.js", "text/javascript; charset=utf-8"]
 };
 const rateLimits = new Map();

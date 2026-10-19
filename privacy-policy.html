@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f6f3">
+  <title>개인정보 처리방침 | 코드온</title>
+  <link rel="icon" type="image/svg+xml" href="/ju-smile-white.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="policy-page">
+    <nav class="policy-nav" aria-label="페이지 이동"><a class="brand" href="/"><span class="brand-icon"><img src="/ju-smile-white.svg" alt=""></span><span>codeon<span class="brand-dot">.</span></span></a><a class="policy-back" href="/">서비스로 돌아가기</a></nav>
+    <article class="policy-card">
+      <span class="eyebrow">CODEON LEARNING SPACE</span>
+      <h1>개인정보 처리방침</h1>
+      <p class="policy-date">시행일: 2026년 10월 19일</p>
+      <p class="policy-intro">코드온 코드 작성 및 AI 튜터 활용 시스템(이하 “서비스”)은 학생·교사·관리자의 개인정보를 보호하고 관련 문의를 처리하기 위해 이 방침을 공개합니다. 이 방침은 서비스에서 실제로 사용하는 계정, 수업, 코드 실행, AI 튜터 및 채점 기능에 적용됩니다.</p>
+
+      <section class="policy-section">
+        <h2>1. 개인정보 처리 목적</h2>
+        <ul>
+          <li>학생·교사·관리자 계정의 생성, 로그인, 역할 및 수업 등록 관리</li>
+          <li>교사가 작성한 수업 문제, 공개 예시 입출력, 비공개 채점 테스트케이스 관리</li>
+          <li>학생의 코드 실행, AI 튜터 단계별 도움 제공 및 교사용 사용 단계 기록</li>
+          <li>Judge0 채점 기능이 활성화된 경우 테스트케이스 채점과 점수·제출 기록 관리</li>
+          <li>서비스 오류 확인, 보안 유지, 부정 사용 방지 및 이용자 문의 처리</li>
+        </ul>
+        <p>개인정보는 위 목적에 필요한 범위에서만 처리합니다. 목적이나 처리 항목이 바뀌면 이 방침을 수정해 안내합니다.</p>
+      </section>
+
+      <section class="policy-section">
+        <h2>2. 처리하는 개인정보 항목</h2>
+        <div class="policy-table-wrap"><table class="policy-table"><thead><tr><th>구분</th><th>처리 항목</th><th>이용 목적</th></tr></thead><tbody>
+          <tr><td>계정 정보</td><td>로그인 아이디, 표시 이름, 역할, 인증 이메일(이메일 계정에 한함), Supabase Auth가 관리하는 인증 정보</td><td>계정 확인, 로그인, 학생·교사·관리자 권한 구분</td></tr>
+          <tr><td>수업·문제 정보</td><td>수업명, 수업 등록 정보, 문제 제목·설명·허용 문법, 공개 예시, 비공개 테스트 입력·정답</td><td>수업 제공, 문제 풀이 및 교사 관리</td></tr>
+          <tr><td>튜터 사용 기록</td><td>계정 식별자, 수업·선택 문제, 도움 단계(1~3), 오류 종류, 오류 줄 번호, 사용 시각</td><td>학생별 AI 튜터 활용 단계 확인과 교사 피드백</td></tr>
+          <tr><td>AI 힌트 요청 정보</td><td>학생이 3단계 설명을 요청한 경우 해당 코드, Python 오류 메시지, 수업 문법 범위</td><td>오류 원인을 설명하는 AI 답변 생성</td></tr>
+          <tr><td>채점 정보</td><td>학생 제출 코드, 채점 상태·점수, 테스트별 실행 결과</td><td>Judge0 채점 기능 활성화 시 자동 채점과 결과 제공</td></tr>
+          <tr><td>기술 정보</td><td>서비스 요청·오류·보안 점검에 필요한 기술 기록</td><td>서비스 운영, 장애 분석 및 보안</td></tr>
+        </tbody></table></div>
+        <p>학생 계정은 교사가 발급한 아이디 방식으로 운영할 수 있습니다. 인증 비밀번호는 앱의 프로필에 평문으로 저장하지 않고 Supabase Auth가 관리합니다. 주민등록번호, 주소, 전화번호, 보호자 연락처, 사진, 위치정보, 건강정보는 서비스 입력 항목으로 수집하지 않습니다. 이용자는 코드에 본인 또는 타인의 개인정보를 넣지 않도록 주의해 주세요.</p>
+      </section>
+
+      <section class="policy-section">
+        <h2>3. Python 코드와 AI 튜터 처리 방식</h2>
+        <ul>
+          <li>일반 연습 실행은 Pyodide를 이용해 이용자의 브라우저에서 처리합니다.</li>
+          <li>오류 종류와 줄 위치 확인은 실행 오류를 바탕으로 안내합니다.</li>
+          <li>학생이 3단계 AI 설명을 직접 요청하면 해당 코드와 오류 정보가 서비스 서버를 거쳐 Google Gemini API로 전송됩니다. 이 요청은 답변 생성을 위한 것이며, 서비스는 학생의 코드나 힌트 문장을 튜터 사용 기록 테이블에 저장하지 않습니다.</li>
+          <li>교사용 튜터 기록에는 도움 단계, 오류 종류, 줄 번호, 수업 및 시각만 저장합니다.</li>
+          <li>코드 예시 검증 파일은 AI의 수업 문맥에 포함하지 않습니다. 교사가 직접 불러 실행할 때만 해당 코드가 브라우저에서 사용됩니다.</li>
+        </ul>
+        <p class="policy-notice">Gemini API의 요청 데이터 처리·보관 조건은 사용 중인 Google AI Studio 요금제와 당시 약관을 따릅니다. 무료 요금제와 유료 요금제의 데이터 처리 조건이 다를 수 있으므로, 학생 코드를 실제로 사용하기 전에 운영자가 Google의 최신 조건과 학교의 동의 절차를 확인해야 합니다.</p>
+      </section>
+
+      <section class="policy-section">
+        <h2>4. 자동 채점 및 외부 서비스</h2>
+        <p>현재 Judge0 자동 채점은 설정되지 않아 비공개 테스트케이스 채점을 제공하지 않습니다. Judge0가 활성화되면 채점 요청에 필요한 학생 코드와 테스트 입력·기대 출력이 Judge0 실행 서비스로 전송되고, 채점 요약과 테스트 결과가 Supabase에 저장됩니다. 이 기능을 켜기 전에 Judge0 이용 조건, 처리 위치, 보관 조건 및 학생 안내를 확인하고 이 방침도 갱신합니다.</p>
+        <div class="policy-table-wrap"><table class="policy-table"><thead><tr><th>서비스 제공자</th><th>이용 목적</th><th>전송 또는 처리 정보</th></tr></thead><tbody>
+          <tr><td>Supabase</td><td>인증, 데이터베이스, 접근 권한 관리</td><td>계정, 수업, 문제, 튜터 사용 단계, 채점 기록</td></tr>
+          <tr><td>Render</td><td>웹앱 호스팅과 서버 API 운영</td><td>로그인 요청, AI 요청, 채점 요청 및 운영에 필요한 기술 정보</td></tr>
+          <tr><td>Google Gemini API</td><td>학생이 요청한 3단계 오류 설명 생성</td><td>해당 코드, 오류 내용, 허용 문법 및 일반 수업 문맥</td></tr>
+          <tr><td>Judge0 (활성화 시)</td><td>비공개 테스트케이스 기반 코드 실행</td><td>제출 코드, 테스트 입력 및 기대 출력</td></tr>
+        </tbody></table></div>
+        <p>Supabase 프로젝트의 데이터 리전과 Render·Google·Judge0의 처리 위치는 각 서비스 설정 및 약관에 따릅니다. 국외 이전 여부, 구체 국가, 이전 시점·방법, 보관 기간은 실제 운영 계정의 설정과 제공자 약관을 확인해 안내합니다.</p>
+      </section>
+
+      <section class="policy-section">
+        <h2>5. 보유 및 이용 기간</h2>
+        <p>현재 앱에는 학년도 종료일에 데이터를 자동 삭제하는 기능이 없습니다. 계정, 수업, 문제 및 제출·튜터 기록은 운영자가 삭제할 때까지 Supabase 프로젝트에 남을 수 있습니다. 운영자는 학교의 보유 기준에 따라 계정 이용 종료 또는 학년도 종료 후 필요한 정보를 정리·삭제해야 합니다.</p>
+        <p>Gemini, Supabase, Render 및 향후 Judge0의 전송·운영 로그는 각 제공자의 약관과 설정에 따른 기간 동안 보관될 수 있습니다. 법령상 보존 의무가 있는 경우에는 해당 기간 동안 필요한 범위에서 보관합니다.</p>
+      </section>
+
+      <section class="policy-section">
+        <h2>6. 파기 절차와 방법</h2>
+        <p>보유 기간이 끝나거나 처리 목적이 달성되어 더 이상 필요하지 않은 개인정보는 지체 없이 삭제합니다. 전자 파일은 복구하기 어려운 방법으로 삭제하며, 테스트 계정과 테스트 수업도 검증이 끝나면 운영자가 정리합니다. Auth 계정과 연결된 프로필·수업 데이터는 서비스 설정과 데이터 관계를 확인한 뒤 함께 삭제합니다.</p>
+      </section>
+
+      <section class="policy-section">
+        <h2>7. 정보주체의 권리와 행사 방법</h2>
+        <p>이용자는 본인 개인정보의 열람, 정정, 삭제, 처리 정지를 요청할 수 있습니다. 계정·이름·수업 등록에 관한 요청은 교사 또는 관리자에게 전달하거나 아래 이메일로 문의해 주세요. 다른 이용자의 권리, 학교의 기록 보존 의무 또는 채점 공정성을 해칠 우려가 있는 경우에는 관련 기준에 따라 제한될 수 있으며 그 사유를 안내합니다.</p>
+        <p>만 14세 미만 이용자가 포함되는 경우 법정대리인의 동의 등 관련 법령에 따른 절차를 먼저 확인해야 합니다. 이 서비스에는 이용자의 나이를 확인하거나 법정대리인 동의를 받는 기능이 없으므로 학교 운영자가 계정 발급 전에 확인해야 합니다.</p>
+      </section>
+
+      <section class="policy-section">
+        <h2>8. 안전성 확보 조치</h2>
+        <ul>
+          <li>Supabase RLS 정책으로 학생은 본인 자료만, 교사는 담당 수업의 자료만 접근하도록 제한합니다.</li>
+          <li>비공개 테스트케이스와 채점 결과 변경 권한은 신뢰된 서버에만 둡니다.</li>
+          <li>Supabase Secret key와 Gemini API 키는 서버 환경변수로 관리하고 브라우저나 저장소에 공개하지 않습니다.</li>
+          <li>비밀번호 인증은 Supabase Auth에서 관리하며, 서비스는 비밀번호를 평문으로 별도 저장하지 않습니다.</li>
+          <li>서비스 운영에 필요한 권한을 제한하고 HTTPS 연결을 사용합니다.</li>
+        </ul>
+      </section>
+
+      <section class="policy-section">
+        <h2>9. 개인정보 보호 문의</h2>
+        <p>개인정보 열람·정정·삭제, 처리 정지 또는 서비스 관련 문의는 아래 이메일로 보내 주세요. 이 안내에는 담당자의 개인 이름이나 전화번호를 기재하지 않습니다.</p>
+        <a class="policy-contact" href="mailto:wndms3156@korea.kr">wndms3156@korea.kr</a>
+        <p>외부 기관에 상담·신고가 필요한 경우 개인정보침해 신고센터(<a href="https://privacy.kisa.or.kr" rel="noreferrer">privacy.kisa.or.kr</a>), 개인정보 분쟁조정위원회(<a href="https://www.kopico.go.kr" rel="noreferrer">kopico.go.kr</a>), 경찰청 사이버범죄 신고시스템(<a href="https://ecrm.police.go.kr" rel="noreferrer">ecrm.police.go.kr</a>)을 이용할 수 있습니다.</p>
+      </section>
+
+      <section class="policy-section">
+        <h2>10. 처리방침 변경</h2>
+        <p>Gemini·Judge0 연동, 수집 항목, 저장 기간 또는 외부 처리 서비스가 바뀌면 변경 사항과 적용일을 서비스 화면에서 안내합니다.</p>
+      </section>
+      <div class="policy-footer"><span>코드온 개인정보 처리방침 · 2026년 10월 19일 시행</span><a href="/">서비스로 돌아가기</a></div>
+    </article>
+  </main>
+</body>
+</html>
