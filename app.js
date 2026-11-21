@@ -505,7 +505,7 @@ async function recordTutorStage(stage) {
   }
 }
 
-function createTutorMessage({ step, label, title, description, nextLabel = "다음 힌트", loading = false }) {
+function createTutorMessage({ step, label, title, description, nextLabel = "다음 힌트", loading = false, onNext = nextHint }) {
   const tutor = $("#tutor-content");
   tutor.replaceChildren();
   const card = document.createElement("div"); card.className = "tutor-step";
@@ -520,7 +520,7 @@ function createTutorMessage({ step, label, title, description, nextLabel = "다�
     button.textContent = loading ? "AI가 설명을 정리하고 있어요" : nextLabel;
     if (!loading) {
       const arrow = document.createElementNS("http://www.w3.org/2000/svg", "svg"); arrow.setAttribute("viewBox", "0 0 24 24"); arrow.setAttribute("aria-hidden", "true"); arrow.innerHTML = '<path d="M5 12h14m-6-6 6 6-6 6"/>';
-      button.append(arrow); button.addEventListener("click", nextHint);
+      button.append(arrow); button.addEventListener("click", onNext);
     }
     actions.append(button); card.append(actions);
   }
@@ -571,19 +571,24 @@ async function nextHint() {
   if (currentStep === 2) {
     currentStep = 3;
     await recordTutorStage(3);
-    createTutorMessage({ step: 3, label: "배운 개념으로 설명", title: "개념을 연결하고 있어요", description: "코드를 고쳐 주는 대신, 오류 원인을 설명할게요.", nextLabel: null, loading: true });
-    try {
-      const response = await fetch("/api/hints", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await sessionToken()}` },
-        body: JSON.stringify({ classId: currentClassId, problemId: currentProblem?.id || null, code: currentError.code, error: currentError.raw, errorType: currentError.kind, line: currentError.line })
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "AI 힌트를 불러오지 못했습니다.");
-      createTutorMessage({ step: 3, label: "배운 개념으로 설명", title: "오류가 생긴 이유", description: data.hint, nextLabel: null });
-    } catch (error) {
-      createTutorMessage({ step: 3, label: "AI 연결", title: "자세한 힌트를 가져오지 못했어요", description: error.message, nextLabel: null });
-    }
+    await requestDetailedHint();
+  }
+}
+
+async function requestDetailedHint() {
+  if (!currentError || !currentClassId) return;
+  createTutorMessage({ step: 3, label: "배운 개념으로 설명", title: "개념을 연결하고 있어요", description: "코드를 고쳐 주는 대신, 오류 원인을 설명할게요.", nextLabel: null, loading: true });
+  try {
+    const response = await fetch("/api/hints", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${await sessionToken()}` },
+      body: JSON.stringify({ classId: currentClassId, problemId: currentProblem?.id || null, code: currentError.code, error: currentError.raw, errorType: currentError.kind, line: currentError.line })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "AI 힌트를 불러오지 못했습니다.");
+    createTutorMessage({ step: 3, label: "배운 개념으로 설명", title: "오류가 생긴 이유", description: data.hint, nextLabel: null });
+  } catch (error) {
+    createTutorMessage({ step: 3, label: "AI 연결", title: "자세한 힌트를 가져오지 못했어요", description: error.message, nextLabel: "다시 시도", onNext: requestDetailedHint });
   }
 }
 
