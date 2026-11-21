@@ -145,7 +145,7 @@ async function createHint(input, request) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature: 0.35, maxOutputTokens: 1024 } }),
-    signal: AbortSignal.timeout(30000)
+    signal: AbortSignal.timeout(60000)
   });
   const result = await response.json();
   if (!response.ok) {
@@ -270,7 +270,7 @@ async function gradeSubmission(input, request) {
           memory_limit: 128000,
           stack_limit: 64000
         }),
-        signal: AbortSignal.timeout(30000)
+        signal: AbortSignal.timeout(60000)
       });
       const result = await response.json();
       if (!response.ok || !result.status) throw new Error("Judge0 request failed");
