@@ -115,7 +115,7 @@ function allowRate(request, key, maximum, windowMs = 60000, identity) {
 }
 
 async function createHint(input, request) {
-  const key = process.env.GEMINI_API_KEY;
+  const key = (process.env.GEMINI_API_KEY || "").trim();
   if (!key) throw Object.assign(new Error("AI 연결 설정이 아직 완료되지 않았습니다."), { status: 503 });
   if (typeof input.code !== "string" || input.code.length > 20000) throw Object.assign(new Error("코드가 너무 길거나 비어 있습니다."), { status: 400 });
   const identity = await verifyUser(request, ["student"]);
@@ -141,26 +141,48 @@ async function createHint(input, request) {
     "학생 코드:\n" + input.code
   ].join("\n\n");
 
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(key)}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature: 0.35, maxOutputTokens: 1024 } }),
-    signal: AbortSignal.timeout(60000)
-  });
-  const result = await response.json();
+  const model = (process.env.GEMINI_MODEL || "gemini-3.8-flash").trim();
+  let response;
+  try {
+    response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        // 생각(thinking) 토큰이 출력 한도를 다 써 버리면 빈 답이 오고, 응답도 느려져 시간 초과가 납니다.
+        generationConfig: { temperature: 0.35, maxOutputTokens: 2048, thinkingConfig: { thinkingLevel: "low" } }
+      }),
+      signal: AbortSignal.timeout(45000)
+    });
+  } catch (error) {
+    console.error("[gemini] network/timeout:", error.name, error.message);
+    const timedOut = error.name === "TimeoutError" || error.name === "AbortError";
+    throw Object.assign(new Error(timedOut ? "AI 응답이 늦어지고 있어요. 잠시 후 다시 눌러 주세요." : "AI 서버에 연결하지 못했습니다."), { status: 504 });
+  }
+  const result = await response.json().catch(() => ({}));
   if (!response.ok) {
+    const detail = result.error || {};
+    const reason = detail.details?.find(item => item.reason)?.reason || detail.status || "";
+    // Render 대시보드 → Logs 에서 실제 원인을 확인할 수 있도록 남깁니다. (키 값은 남기지 않습니다)
+    console.error(`[gemini] HTTP ${response.status} model=${model} reason=${reason} message=${detail.message || ""}`);
+    const keyProblem = response.status === 401 || response.status === 403 || /API_KEY|PERMISSION|SERVICE_DISABLED/.test(reason) || /API key/i.test(detail.message || "");
     const status = response.status === 429 ? 429 : 502;
-    const message = response.status === 401 || response.status === 403
-      ? "Gemini API 키 권한을 확인해 주세요."
-      : response.status === 400 || response.status === 404
-        ? "Gemini 모델 요청을 처리하지 못했습니다."
-        : status === 429
-          ? "AI 무료 사용 한도에 도달했습니다. 잠시 후 다시 시도해 주세요."
-          : "AI 튜터에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+    const message = keyProblem
+      ? "Gemini API 키가 올바르지 않거나 권한이 없습니다. (교사: Render 환경변수 GEMINI_API_KEY 확인)"
+      : response.status === 404
+        ? `Gemini 모델(${model})을 찾을 수 없습니다. (교사: GEMINI_MODEL 확인)`
+        : response.status === 400
+          ? "Gemini 요청 형식을 처리하지 못했습니다. (교사: Render Logs 확인)"
+          : status === 429
+            ? "AI 무료 사용 한도에 도달했습니다. 잠시 후 다시 시도해 주세요."
+            : "AI 튜터에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.";
     throw Object.assign(new Error(message), { status });
   }
-  let hint = result.candidates?.[0]?.content?.parts?.map(part => part.text || "").join("\n").trim();
-  if (!hint) throw Object.assign(new Error("AI 힌트를 만들지 못했습니다."), { status: 502 });
+  let hint = result.candidates?.[0]?.content?.parts?.filter(part => !part.thought).map(part => part.text || "").join("\n").trim();
+  if (!hint) {
+    console.error(`[gemini] empty answer finishReason=${result.candidates?.[0]?.finishReason} block=${result.promptFeedback?.blockReason || ""}`);
+    throw Object.assign(new Error("AI 힌트를 만들지 못했습니다. 다시 시도해 주세요."), { status: 502 });
+  }
   const containsCode = hint.includes("```") || /`[^`]+`/.test(hint) || /(^|\n)\s*(?:[A-Za-z_]\w*\s*(?:=|\+=|-=)|(?:print|return|if|for|while|def)\b)/m.test(hint);
   if (containsCode) hint = "오류가 난 부분에서 사용한 이름과 값의 종류를, 이번 문제에서 배운 개념과 비교해 보세요. 한 번에 한 부분씩 살펴보면 원인을 찾을 수 있어요.";
   if (hint.length < 30) hint = "이번 문제에서 배운 개념을 사용해 코드의 흐름을 다시 살펴보세요. 오류가 난 줄에서 정한 이름이나 값이 앞부분과 일치하는지 확인해 보시겠어요?";
